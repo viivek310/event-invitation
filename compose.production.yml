@@ -1,0 +1,186 @@
+name: ${COMPOSE_PROJECT_NAME:-invitation-production}
+
+x-logging: &logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+
+x-database-environment: &database-environment
+  APP_URL: https://${DOMAIN:?Set DOMAIN in .env.production}
+  DB_NAME: ${DB_NAME:-invitations}
+  DB_APP_USER: ${DB_APP_USER:-invitation_app}
+  DB_MIGRATION_USER: ${DB_MIGRATION_USER:-invitation_migrator}
+  APP_DB_PASSWORD_FILE: /run/secrets/db_app_password
+  TZ: ${TZ:-UTC}
+
+x-operations: &operations
+  image: ${OPS_IMAGE:?Set an immutable OPS_IMAGE in .env.production}
+  build:
+    context: .
+    target: operations
+  environment:
+    <<: *database-environment
+    SECRET_MODE: database
+    DB_MIGRATION_PASSWORD_FILE: /run/secrets/db_migration_password
+  secrets:
+    - db_app_password
+    - db_migration_password
+  networks:
+    - invitation-network
+  depends_on:
+    postgres:
+      condition: service_healthy
+  init: true
+  read_only: true
+  tmpfs:
+    - /tmp:size=64m,mode=1777
+  cap_drop: [ALL]
+  security_opt: [no-new-privileges:true]
+  mem_limit: 768m
+  cpus: 1.0
+  pids_limit: 128
+  logging: *logging
+  labels:
+    traefik.enable: "false"
+
+services:
+  postgres:
+    image: postgres:17-alpine@sha256:266d3c257594e195b309ae9d1805e54c788f1d7b375f56bf6c367aac6c917e7b
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${DB_NAME:-invitations}
+      POSTGRES_USER: invitation_bootstrap
+      POSTGRES_PASSWORD_FILE: /run/secrets/db_bootstrap_password
+      DB_APP_USER: ${DB_APP_USER:-invitation_app}
+      DB_MIGRATION_USER: ${DB_MIGRATION_USER:-invitation_migrator}
+      POSTGRES_INITDB_ARGS: --auth-host=scram-sha-256 --auth-local=trust
+      TZ: ${TZ:-UTC}
+    secrets:
+      - db_bootstrap_password
+      - db_app_password
+      - db_migration_password
+    volumes:
+      - database:/var/lib/postgresql/data
+      - ./docker/init-production-db.sh:/docker-entrypoint-initdb.d/10-app-roles.sh:ro
+    networks:
+      - invitation-network
+    healthcheck:
+      test: [CMD-SHELL, 'pg_isready -U "$$POSTGRES_USER" -d "$$POSTGRES_DB"']
+      interval: 5s
+      timeout: 3s
+      retries: 20
+      start_period: 30s
+    security_opt: [no-new-privileges:true]
+    shm_size: 128m
+    mem_limit: 1g
+    cpus: 1.0
+    pids_limit: 256
+    logging: *logging
+    labels:
+      traefik.enable: "false"
+
+  migrate:
+    <<: *operations
+    restart: "no"
+    command: [docker/migrate.mjs]
+
+  app:
+    image: ${APP_IMAGE:?Set an immutable APP_IMAGE in .env.production}
+    build:
+      context: .
+      target: runner
+    restart: unless-stopped
+    init: true
+    environment:
+      <<: *database-environment
+      NODE_ENV: production
+      HOSTNAME: 0.0.0.0
+      PORT: "3000"
+      MEDIA_ROOT: /app/private-media
+      TRUST_PROXY: ${TRUST_PROXY:-false}
+      SESSION_SECRET_FILE: /run/secrets/session_secret
+      MFA_ENCRYPTION_KEY_FILE: /run/secrets/mfa_encryption_key
+    secrets:
+      - db_app_password
+      - session_secret
+      - mfa_encryption_key
+    depends_on:
+      postgres:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    volumes:
+      - media:/app/private-media
+      - next-cache:/app/.next/cache
+    networks:
+      - invitation-network
+      - traefik-network
+    read_only: true
+    tmpfs:
+      - /tmp:size=64m,mode=1777
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    mem_limit: 1g
+    cpus: 1.5
+    pids_limit: 256
+    stop_grace_period: 30s
+    logging: *logging
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=${TRAEFIK_NETWORK:-traefik-network}"
+      - "traefik.http.routers.invitation.rule=Host(`${DOMAIN:?Set DOMAIN}`)"
+      - "traefik.http.routers.invitation.entrypoints=websecure"
+      - "traefik.http.routers.invitation.tls=true"
+      - "traefik.http.routers.invitation.tls.certresolver=${TRAEFIK_CERT_RESOLVER:-letsencrypt}"
+      - "traefik.http.routers.invitation.service=invitation"
+      - "traefik.http.services.invitation.loadbalancer.server.port=3000"
+      - "traefik.http.services.invitation.loadbalancer.healthcheck.path=/api/health?ready=1"
+      - "traefik.http.services.invitation.loadbalancer.healthcheck.interval=15s"
+      - "traefik.http.services.invitation.loadbalancer.healthcheck.timeout=5s"
+
+  tools:
+    <<: *operations
+    profiles: [tools]
+    command: [--import, tsx, scripts/catalog-sync.ts]
+
+  media-backup:
+    image: ${APP_IMAGE:?Set APP_IMAGE}
+    profiles: [tools]
+    entrypoint: [tar]
+    command: [-C, /app/private-media, -czf, "-", .]
+    user: "1000:1000"
+    read_only: true
+    network_mode: none
+    volumes:
+      - media:/app/private-media:ro
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    healthcheck:
+      disable: true
+    labels:
+      traefik.enable: "false"
+
+networks:
+  invitation-network:
+    internal: true
+  traefik-network:
+    external: true
+    name: ${TRAEFIK_NETWORK:-traefik-network}
+
+volumes:
+  database:
+  media:
+  next-cache:
+
+secrets:
+  db_bootstrap_password:
+    file: ${SECRETS_DIR:-./secrets/production}/db_bootstrap_password
+  db_migration_password:
+    file: ${SECRETS_DIR:-./secrets/production}/db_migration_password
+  db_app_password:
+    file: ${SECRETS_DIR:-./secrets/production}/db_app_password
+  session_secret:
+    file: ${SECRETS_DIR:-./secrets/production}/session_secret
+  mfa_encryption_key:
+    file: ${SECRETS_DIR:-./secrets/production}/mfa_encryption_key

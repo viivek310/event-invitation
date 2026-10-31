@@ -1,0 +1,16 @@
+node_modules
+.next
+.git
+.env
+.env.*
+secrets
+private-media
+work
+coverage
+test-results
+playwright-report
+*.log
+*.tsbuildinfo
+backups
+.codex
+.agents

@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="720" height="650" viewBox="0 0 720 650">
+  <defs><filter id="shadow" x="-40%" y="-40%" width="180%" height="190%"><feDropShadow dx="4" dy="14" stdDeviation="16" flood-color="#454b34" flood-opacity=".13"/></filter></defs>
+  <rect width="720" height="650" fill="#edf0e5"/>
+  <g transform="rotate(6 360 325)"><path d="M186 541V269a174 174 0 0 1 348 0v272z" fill="#dce1d0"/></g>
+  <g transform="rotate(-6 350 325)" filter="url(#shadow)">
+    <path d="M185 540V262a170 170 0 0 1 340 0v278z" fill="#fcf8ef"/>
+    <path d="M199 526V262a156 156 0 0 1 312 0v264z" fill="none" stroke="#c6bea5"/>
+    <text x="355" y="169" text-anchor="middle" fill="#a99772" font-size="38" font-family="Georgia,serif">✧</text>
+    <text x="355" y="204" text-anchor="middle" fill="#7d816b" font-size="8" letter-spacing="2" font-family="Arial,sans-serif">TOGETHER WITH THEIR FAMILIES</text>
+    <text x="355" y="270" text-anchor="middle" fill="#536047" font-size="53" font-family="Georgia,serif">Aarav</text>
+    <text x="355" y="307" text-anchor="middle" fill="#a9936a" font-size="30" font-style="italic" font-family="Georgia,serif">&amp;</text>
+    <text x="355" y="360" text-anchor="middle" fill="#536047" font-size="53" font-family="Georgia,serif">Meera</text>
+    <path d="M330 386h50" stroke="#b9aa85"/>
+    <text x="355" y="412" text-anchor="middle" fill="#7d816b" font-size="7" letter-spacing="1.5" font-family="Arial,sans-serif">INVITE YOU TO CELEBRATE THEIR WEDDING</text>
+    <text x="355" y="450" text-anchor="middle" fill="#707454" font-size="17" letter-spacing="4" font-family="Georgia,serif">21 · 02 · 2027</text>
+    <text x="355" y="477" text-anchor="middle" fill="#7d816b" font-size="8" letter-spacing="2" font-family="Arial,sans-serif">JAIPUR, INDIA</text>
+    <text x="355" y="511" text-anchor="middle" fill="#a99772" font-size="21" font-family="Georgia,serif">✧</text>
+  </g>
+</svg>

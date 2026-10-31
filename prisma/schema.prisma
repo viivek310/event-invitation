@@ -1,0 +1,183 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum Role {
+  ADMIN
+  CUSTOMER
+}
+
+model Account {
+  id String @id @default(cuid())
+  name String
+  phone String @unique
+  passwordHash String
+  role Role @default(CUSTOMER)
+  mustChangePassword Boolean @default(true)
+  suspended Boolean @default(false)
+  mfaSecret String?
+  mfaLastStep Int @default(0)
+  createdAt DateTime @default(now())
+  sessions Session[]
+  recoveryCodes RecoveryCode[]
+  invitations Invitation[]
+}
+
+model Session {
+  hash String @id
+  accountId String
+  account Account @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  kind String
+  enrollmentSecret String?
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  @@index([accountId])
+  @@index([expiresAt])
+}
+
+model RecoveryCode {
+  hash String @id
+  accountId String
+  account Account @relation(fields: [accountId], references: [id], onDelete: Cascade)
+}
+
+model CatalogEntry {
+  id String @id
+  title String
+  description String
+  thumbnail String?
+  visible Boolean @default(false)
+  demo Json
+  updatedAt DateTime @updatedAt
+}
+
+model Invitation {
+  id String @id @default(cuid())
+  ownerId String
+  owner Account @relation(fields: [ownerId], references: [id])
+  templateId String
+  schemaVersion Int @default(1)
+  slug String @unique
+  state String @default("DRAFT")
+  draft Json
+  published Json?
+  revision Int @default(1)
+  publishedRevision Int?
+  publishedAt DateTime?
+  sections String[]
+  publishedSections String[] @default([])
+  rsvpEnabled Boolean @default(false)
+  rsvpDeadline DateTime?
+  partyLimit Int @default(6)
+  dietaryEnabled Boolean @default(true)
+  accommodationEnabled Boolean @default(true)
+  expiresAt DateTime?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  responses Rsvp[]
+  sales Sale[]
+  revisions ContentRevision[]
+  media Media[]
+  @@index([ownerId, createdAt])
+  @@index([state, expiresAt])
+}
+
+model ContentRevision {
+  id String @id @default(cuid())
+  invitationId String
+  invitation Invitation @relation(fields: [invitationId], references: [id])
+  number Int
+  content Json
+  actorId String
+  createdAt DateTime @default(now())
+  @@unique([invitationId, number])
+}
+
+model Rsvp {
+  id String @id @default(cuid())
+  invitationId String
+  invitation Invitation @relation(fields: [invitationId], references: [id])
+  name String
+  phone String
+  email String?
+  attending Boolean
+  partySize Int
+  ceremonies String[]
+  dietary String?
+  accommodation String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  @@unique([invitationId, phone])
+  @@index([invitationId, createdAt])
+}
+
+model Coupon {
+  id String @id @default(cuid())
+  code String @unique
+  kind String
+  value Int
+  active Boolean @default(true)
+  startsAt DateTime?
+  endsAt DateTime?
+  limit Int?
+  used Int @default(0)
+  sales Sale[]
+}
+
+model Sale {
+  id String @id @default(cuid())
+  requestKey String @unique
+  invitationId String
+  invitation Invitation @relation(fields: [invitationId], references: [id])
+  couponId String?
+  coupon Coupon? @relation(fields: [couponId], references: [id])
+  couponCode String?
+  originalPrice Int
+  discount Int
+  total Int
+  cash Int
+  complimentary Boolean
+  paidAt DateTime
+  expiresAt DateTime
+  notes String
+  actorId String
+  createdAt DateTime @default(now())
+}
+
+model Media {
+  id String @id @default(cuid())
+  invitationId String?
+  invitation Invitation? @relation(fields: [invitationId], references: [id])
+  filename String @unique
+  mime String
+  size Int
+  createdAt DateTime @default(now())
+}
+
+model AuditEvent {
+  id String @id @default(cuid())
+  actorId String?
+  action String
+  targetId String?
+  details Json?
+  createdAt DateTime @default(now())
+  @@index([createdAt])
+}
+
+model RateBucket {
+  key String @id
+  count Int
+  expiresAt DateTime
+  @@index([expiresAt])
+}
+
+model Settings {
+  id String @id @default("studio")
+  name String @default("Invitation Studio")
+  phone String @default("")
+  email String @default("")
+}
