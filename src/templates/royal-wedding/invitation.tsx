@@ -241,9 +241,9 @@ export function RoyalWeddingBody({
       </section>
       <DateScene content={content} active={active} />
       <EventsSequence content={content} active={active} />
-      {(mode === "admin-review" || (mode === "live" && live)) && (
+      {(mode === "demo" || mode === "admin-review" || (mode === "live" && live)) && (
         <div className={styles.correspondence} data-scene data-body-section="rsvp">
-          <RsvpReview content={content} live={mode === "live" ? live : undefined} />
+          <RsvpReview content={content} demo={mode === "demo"} live={mode === "live" ? live : undefined} />
         </div>
       )}
       <section

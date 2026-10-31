@@ -93,6 +93,8 @@ Current RSVP/invitee refinement preserves the existing burgundy canvas and palac
 
 ## Full application and production container update
 
+Public preview update: `/templates/royal-wedding?canvas=1` now includes the static RSVP layout, superseding the earlier demo-omission requirement. All its controls and submission remain disabled, with a visible preview-only note; it has no live RSVP context and sends no RSVP requests. Purchased invitation RSVP remains governed by the order's enabled sections and live entitlement.
+
 The later approved app milestone implements PostgreSQL-backed accounts, admin MFA, customer password login without SMS, manual cash activation/coupons, versioned publishing, ownership checks and live RSVP management. README documents the current admin/customer workflows. Royal Wedding's creator footer now credits Vivek Vasant with +91 9106974854.
 
 Production deployment now uses `Dockerfile` and `compose.production.yml`: Next.js standalone runtime, separate migration/tools image, PostgreSQL, private networking, mounted secret files, persistent media/database volumes, and the user's existing external Traefik network. This supersedes the earlier proposed Caddy deployment and database-only production instructions. Local development remains host Next.js plus Docker PostgreSQL. OPERATIONS.md contains deployment, updates, rollback, backup/restore and credential guidance. Off-server backup scheduling/retention and external monitoring still require operator setup; do not infer a verified public launch from container configuration alone.

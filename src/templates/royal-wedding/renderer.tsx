@@ -6,7 +6,7 @@ import type { OpeningPhase } from "./opening/config";
 import { RoyalWeddingBody } from "./invitation";
 import type { RoyalWeddingContent } from "./content";
 import { ArtworkContext } from "./artwork-context";
-const defaultSections = ["opening","ganesha","invitation","date","events","invitee"];
+const defaultSections = ["opening","ganesha","invitation","date","events","rsvp","invitee"];
 export default function RoyalWeddingRenderer({ content, mode, sections = defaultSections, live }: TemplateProps) {
   const [phase,setPhase] = useState<OpeningPhase>("loading");
   const [revision,setRevision] = useState(0);

@@ -6,7 +6,7 @@ import { Flourish } from "./artwork";
 import styles from "./invitation.module.css";
 import { RoyalCorners } from "./royal-corners";
 
-export function RsvpReview({ content, live }: { content: RoyalWeddingContent; live?: TemplateProps["live"] }) {
+export function RsvpReview({ content, live, demo = false }: { content: RoyalWeddingContent; live?: TemplateProps["live"]; demo?: boolean }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState(false);
@@ -17,6 +17,7 @@ export function RsvpReview({ content, live }: { content: RoyalWeddingContent; li
         <span className={styles.eyebrow}>Your reply</span>
         <h2 id="royal-rsvp-title">Kindly RSVP</h2>
         <p className={styles.sectionMessage}>We look forward to celebrating with you.</p>
+        {demo && <p className={styles.sectionMessage}>Preview only — responses cannot be sent.</p>}
         <Flourish className={styles.flourish} />
       </div>
       {success ? <div className={styles.rsvpConfirmation} role="status"><h3>Thank you for your reply</h3><p>Your response has been received by the hosts.</p></div> : <form onSubmit={async event => {

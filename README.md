@@ -4,7 +4,7 @@ A Next.js invitation business application for public template previews, offline 
 
 ## Implemented
 
-- Public template catalog and dummy-data previews; Royal Wedding is registered in PostgreSQL. Demos never show or save RSVPs.
+- Public template catalog and dummy-data previews; Royal Wedding is registered in PostgreSQL. Its public preview includes a static, disabled RSVP form with no submission or response storage.
 - Admin-created customers, mobile-number/password login, first-login password changes, revocable database sessions, manual password resets, and account suspension. **No SMS provider, OTP messages, public signup, or email service is required.**
 - Admin authenticator-app MFA with encrypted secrets and one-use recovery codes. Initial admin creation is an interactive command without default credentials.
 - Database-backed customer/invitation management, structured content editing, private saved-draft preview, section controls/order, revision conflict detection, and explicit publication.
@@ -106,7 +106,7 @@ Open **Settings** and save your business name, public contact mobile number, and
 Open **Templates** to edit a listing's title, description, thumbnail URL, public visibility, and fictional demo content. Save changes, then use **View public template** to check the result.
 
 - Share `/templates` or `/templates/royal-wedding` with prospective customers. Browsing requires no account.
-- Keep demo names and personal details fictional. Public demos never include a live RSVP form or save responses.
+- Keep demo names and personal details fictional. The public Royal Wedding demo shows a static, disabled RSVP layout; it never submits or saves responses.
 - Catalog visibility controls the listing/demo; manage a purchased invitation's availability on its own order.
 - Adding a completely new layout requires a code implementation and deployment. The admin editor changes content for existing layouts.
 

@@ -1,5 +1,27 @@
 import { test, expect } from "@playwright/test";
 
+test("public full-page preview shows static RSVP without submitting responses", async ({ browser }) => {
+  const context = await browser.newContext({ storageState: { cookies: [], origins: [] }, reducedMotion: "reduce" });
+  const page = await context.newPage();
+  const submissions: string[] = [];
+  page.on("request", request => { if (request.url().includes("/api/rsvp/")) submissions.push(request.url()); });
+  try {
+    await page.goto("/templates/royal-wedding?canvas=1");
+    const canvas = page.locator("[data-royal-scroll]");
+    const skip = canvas.getByRole("button", { name: "Skip introduction" });
+    if (await skip.isVisible()) await skip.click();
+    const rsvp = canvas.locator('[data-section="rsvp"]');
+    await expect(rsvp).toBeAttached();
+    await rsvp.scrollIntoViewIfNeeded();
+    await expect(rsvp.getByRole("heading", { name: "Kindly RSVP" })).toBeVisible();
+    await expect(rsvp.getByText("Preview only — responses cannot be sent.")).toBeVisible();
+    for (const field of await rsvp.locator("input,select,textarea,button").all()) await expect(field).toBeDisabled();
+    await rsvp.locator("form").evaluate(form => form.dispatchEvent(new Event("submit", { bubbles: true, cancelable: true })));
+    expect(submissions).toEqual([]);
+    await expect(rsvp.getByText("Your response has been received by the hosts.")).toHaveCount(0);
+  } finally { await context.close(); }
+});
+
 for (const viewport of [{ width: 1440, height: 1050 }, { width: 390, height: 844 }, { width: 588, height: 615 }]) {
   test(`RSVP refinement retains burgundy surroundings and readable details at ${viewport.width}px`, async ({ page }, info) => {
     await page.setViewportSize(viewport);
