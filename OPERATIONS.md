@@ -199,11 +199,9 @@ Never restore over production for a drill. Restore backed-up MFA/session keys in
 - Admin recovery: an unused recovery code replaces the second factor after password login. Lost password/all factors requires controlled operator intervention; there is no unauthenticated reset endpoint.
 - Monitor service failures, disk space, backup age, TLS expiry, and readiness externally. After incident recovery, verify login/MFA and an actual guest RSVP write before reopening service.
 
-## Documentation references
-
 ## Local verification of this Docker setup
 
-The Linux web and operational images were built locally without deployment credentials or a live build-time database. An isolated Compose stack passed migrations, catalog registration, readiness, public catalog/invitation rendering, authentication redirects, missing-secret startup rejection, non-root/read-only checks, runtime secret scoping, database/media persistence after app recreation, and a database dump/restore into a separate test database. The media archive helper also passed. Type checks passed; `npm audit --omit=dev` reported zero known vulnerabilities.
+The Linux web and operational images were built locally without deployment credentials or a live build-time database. An isolated Compose stack passed migrations, catalog registration, interactive admin bootstrap with a disposable account, readiness, public catalog/invitation rendering, authentication redirects, missing-secret startup rejection, non-root/read-only checks, runtime secret scoping, database/media persistence after app recreation, and a database dump/restore into a separate test database. The media archive helper also passed. Type checks passed; `npm audit --omit=dev` reported zero known vulnerabilities.
 
 The full dependency installation still reports 16 moderate development-tool advisories. Docker Scout could not scan images because this machine is not signed into Docker. Container vulnerability scans, real-domain Traefik/TLS smoke checks, age encryption/off-server upload, scheduled backups, and external monitoring remain deployment checks; they are not claimed verified by the local smoke test.
 

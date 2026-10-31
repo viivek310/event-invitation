@@ -122,7 +122,7 @@ services:
     cap_drop: [ALL]
     security_opt: [no-new-privileges:true]
     mem_limit: 1g
-    cpus: 1.5
+    cpus: 1.0
     pids_limit: 256
     stop_grace_period: 30s
     logging: *logging
