@@ -16,7 +16,6 @@ import { usePalaceArtwork } from "../artwork-context";
 import { royalBody, royalDisplay } from "../fonts";
 import { PalaceImage } from "../palace-image";
 import { observeRoyalViewport } from "../scroll-layout";
-import { RoyalExplore } from "../explore";
 import { RoyalArrow } from "../royal-icons";
 
 type Asset = keyof typeof openingConfig.assets;
@@ -458,7 +457,6 @@ export function RoyalOpening({ onPhaseChange, onRetry, children, openingEnabled 
       aria-label="Royal Wedding opening animation"
       aria-busy={busy}
     >
-      <RoyalExplore canvas={root} active={phase === "complete"} />
       <div className={styles.ambient} aria-hidden="true">
         {Array.from({ length: 10 }, (_, i) => (
           <span

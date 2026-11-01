@@ -80,6 +80,7 @@ export function RoyalOpeningPreview() {
         </span>
       </div>
       <div
+        data-royal-embedded
         className={`${styles.canvasArea} ${device === "mobile" ? styles.mobile : styles.desktop}`}
       >
         <div className={styles.device}>

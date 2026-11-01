@@ -14,7 +14,7 @@ A Next.js invitation business application for public template previews, offline 
 - Live guest RSVPs, duplicate-phone protection, party/deadline checks, customer/admin search, attendance filters, headcounts, per-ceremony totals, manual corrections, deletion, polling, and CSV export. Access requires RSVP enabled for that order.
 - Restricted media uploads, optimized raster images, private media storage, controlled serving, audit history, database-backed rate limits, CSRF/origin checks, nonce-based script CSP, and private-response cache restrictions.
 - Public studio contact settings and liveness/readiness endpoints.
-- Royal Wedding Explore navigation, native scrolling with stable mobile scene measurements, readable ceremony exits, progressive artwork preparation, individual RSVP entrances, and visibility-aware countdown updates. Reduced-motion layouts retain accurate ceremony navigation.
+- Royal Wedding uses native scrolling with stable animation measurements and dynamic-height Date/Celebrations surfaces that fill the mobile viewport as browser controls move. There is no floating Explore menu. A thicker scrollbar, ceremony navigation, readable scene exits, progressive artwork preparation, individual RSVP entrances, and visibility-aware countdown updates support guest browsing. Reduced-motion layouts retain accurate ceremony navigation.
 
 Implementation is subject to the validation results reported in the delivery. Source code or test definitions alone do not imply a verified production launch.
 

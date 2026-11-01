@@ -282,7 +282,6 @@ export function EventsSequence({ content, active }: { content: RoyalWeddingConte
       canvas.addEventListener("wheel", interrupt, { passive: true });
       canvas.addEventListener("pointerdown", interrupt, { passive: true });
       canvas.addEventListener("keydown", key);
-      canvas.addEventListener("royal-section-navigation", navigate);
       canvas.addEventListener("royal-ceremony-navigation", navigate);
       disposeSnap = () => {
         stop();
@@ -290,7 +289,6 @@ export function EventsSequence({ content, active }: { content: RoyalWeddingConte
         canvas.removeEventListener("wheel", interrupt);
         canvas.removeEventListener("pointerdown", interrupt);
         canvas.removeEventListener("keydown", key);
-        canvas.removeEventListener("royal-section-navigation", navigate);
         canvas.removeEventListener("royal-ceremony-navigation", navigate);
       };
       frame = requestAnimationFrame(() => {

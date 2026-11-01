@@ -3,6 +3,7 @@ import { test, expect } from "@playwright/test";
 import { PrismaClient } from "@prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { royalWeddingDemo } from "../../src/templates/royal-wedding/content";
+import { scrollToSection } from "./royal-scroll-helpers";
 
 for (const size of [{ width: 1440, height: 1050 }, { width: 390, height: 844 }, { width: 588, height: 615 }]) {
   test(`family closing follows the formal hierarchy without repeated artwork at ${size.width}`, async ({ page }, info) => {
@@ -12,11 +13,10 @@ for (const size of [{ width: 1440, height: 1050 }, { width: 390, height: 844 }, 
     await page.goto("/preview/royal-wedding");
     const canvas = page.locator("[data-royal-scroll]");
     await canvas.getByRole("button", { name: "Skip introduction" }).click();
-    await canvas.getByRole("button", { name: "Explore", exact: true }).click();
-    await canvas.getByRole("navigation", { name: "Explore invitation" }).getByRole("button", { name: "Family" }).click();
+    await scrollToSection(canvas, "invitee");
     const family = canvas.locator('[data-section="invitee"]');
     const heading = family.getByRole("heading", { name: "Inviting You" });
-    await expect(heading).toBeFocused();
+    await expect(heading).toHaveCSS("opacity", "1");
     await expect(family.locator("picture, img")).toHaveCount(0);
     await expect(family).not.toContainText("our greatest joy");
     await expect(family).not.toContainText("loving hosts");
@@ -93,10 +93,9 @@ test("admin family fields preserve saved content and preview long names with six
     await page.goto(`/admin/invitations/${invitationId}/preview`);
     const canvas = page.locator("[data-royal-scroll]");
     await canvas.getByRole("button", { name: "Skip introduction" }).click();
-    await canvas.getByRole("button", { name: "Explore", exact: true }).click();
-    await canvas.getByRole("navigation", { name: "Explore invitation" }).getByRole("button", { name: "Family" }).click();
+    await scrollToSection(canvas, "invitee");
     const family = canvas.locator('[data-section="invitee"]');
-    await expect(family.getByRole("heading")).toBeFocused();
+    await expect(family.getByRole("heading")).toHaveCSS("opacity", "1");
     await expect(family).toContainText(introduction);
     await expect(family).toContainText(elder);
     for (const host of hosts) await expect(family.getByText(host, { exact: true })).toBeVisible();

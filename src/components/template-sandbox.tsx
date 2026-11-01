@@ -116,7 +116,7 @@ export function TemplateSandbox({
           </p>
         </form>
       </section>
-      <section className="sandbox-preview" aria-label="Invitation preview">
+      <section className="sandbox-preview" aria-label="Invitation preview" data-royal-embedded>
         <div className="sandbox-caption">
           <span className="status-dot" /> Same template · sample content
         </div>

@@ -1,6 +1,7 @@
 import { test, expect } from "@playwright/test";
 import type { Locator, Page } from "@playwright/test";
 import { royalEvents as motion } from "../../src/templates/royal-wedding/design";
+import { scrollToSection } from "./royal-scroll-helpers";
 
 const runtimeErrors = new WeakMap<Page, string[]>();
 test.beforeEach(({ page }) => {
@@ -45,7 +46,7 @@ test("canceling after a snap refresh and during cleanup handles a cleared tween"
   await page.goto("/templates");
 });
 
-test("new input cancels a running snap and Explore can leave events", async ({ page }) => {
+test("new input cancels a running snap and native scrolling can leave events", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto("/preview/royal-wedding");
   const canvas = page.locator("[data-royal-scroll]");
@@ -59,9 +60,8 @@ test("new input cancels a running snap and Explore can leave events", async ({ p
   await page.waitForTimeout(800);
   expect(await canvas.evaluate(node => node.scrollTop)).toBe(interrupted);
   await canvas.dispatchEvent("pointerup", { pointerId: 9, pointerType: "touch", bubbles: true });
-  await canvas.getByRole("button", { name: "Explore", exact: true }).click();
-  await canvas.getByRole("navigation", { name: "Explore invitation" }).getByRole("button", { name: "RSVP" }).click();
-  await expect(canvas.getByRole("heading", { name: "Kindly RSVP" })).toBeFocused();
+  await scrollToSection(canvas, "rsvp");
+  await expect(canvas.getByRole("heading", { name: "Kindly RSVP" })).toBeVisible();
   const destination = await canvas.evaluate(node => node.scrollTop);
   await page.waitForTimeout(1200);
   expect(await canvas.evaluate(node => node.scrollTop)).toBe(destination);

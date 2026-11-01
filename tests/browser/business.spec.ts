@@ -72,6 +72,7 @@ test("cash sale, coupons, publishing, live RSVP, isolation, expiry, and feature 
     expect(invalidRsvp.status()).toBe(400);
     const live = await page.goto(`/invite/${slug}`); expect(live?.status()).toBe(200);
     const canvas = page.locator("[data-royal-scroll]"); await canvas.getByRole("button",{name:"Skip introduction"}).click();
+    await expect(canvas.getByRole("button", { name: "Explore", exact: true })).toHaveCount(0);
     const form = canvas.locator('[data-section="rsvp"]');
     await form.getByLabel("Your name",{exact:true}).fill("Guest One");
     await form.getByLabel("Phone number").fill(`+9193${stamp}`);

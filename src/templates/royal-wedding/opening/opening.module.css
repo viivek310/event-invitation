@@ -439,10 +439,17 @@
 .stage[data-phase="complete"] {
   overflow-x: hidden;
   overflow-y: auto;
-  scrollbar-width: thin;
-  scrollbar-color: #d6bc8340 var(--royal-backgroundDeep);
+  scrollbar-width: auto;
+  scrollbar-color: #d6bc83a6 var(--royal-backgroundDeep);
   overscroll-behavior: contain;
   background: var(--royal-card);
+}
+@supports selector(::-webkit-scrollbar) {
+  .stage[data-phase="complete"] { scrollbar-color: auto; }
+  .stage::-webkit-scrollbar { width: 12px; height: 12px; }
+  .stage::-webkit-scrollbar-track { background: var(--royal-backgroundDeep); }
+  .stage::-webkit-scrollbar-thumb { background: #d6bc83a6; border: 2px solid var(--royal-backgroundDeep); border-radius: 12px; min-height: 48px; }
+  .stage::-webkit-scrollbar-thumb:hover { background: #d6bc83; }
 }
 .stage[data-phase="complete"]:focus-visible {
   outline: 2px solid var(--royal-gold);

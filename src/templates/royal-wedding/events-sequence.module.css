@@ -40,7 +40,7 @@
 .disclosure { font-size: 10px; line-height: 16px; color: #c9b5bd; }
 .srOnly { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 .events[data-events-pinned="true"] { height: calc(var(--event-height) * var(--event-screens)); }
-.events[data-events-pinned="true"] .stage { position: sticky; top: 0; height: var(--event-height); overflow: hidden; }
+.events[data-events-pinned="true"] .stage { position: sticky; top: 0; height: var(--royal-visual-height, var(--event-height)); overflow: hidden; }
 .events[data-events-pinned="true"] .deck { align-items: center; min-height: 0; }
 .events[data-events-pinned="true"] .panel { grid-area: 1/1; margin: 0 auto; }
 .events[data-events-pinned="true"] .imageWindow { height: var(--event-image-height); width: min(100%, calc(var(--event-image-height) * .75)); }

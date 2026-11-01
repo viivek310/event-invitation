@@ -16,7 +16,7 @@ import { RoyalMark } from "./royal-icons";
 import { ScrollCue } from "./scroll-cue";
 import { royalCreator } from "./design";
 import styles from "./invitation.module.css";
-import { observeRoyalViewport, refreshRoyalScroll } from "./scroll-layout";
+import { observeRoyalViewport, refreshRoyalScroll, royalViewport } from "./scroll-layout";
 
 gsap.registerPlugin(ScrollTrigger);
 export type RoyalReviewMode = "demo" | "admin-review" | "live";
@@ -91,7 +91,6 @@ export function RoyalWeddingBody({
               },
               0.5,
             );
-            settleSections.set("invitation", () => { sequence.progress(1); });
             return;
           }
           if (scene.querySelector('[data-section="rsvp"]')) {
@@ -216,7 +215,8 @@ export function RoyalWeddingBody({
         const intro = node.querySelector<HTMLElement>('[data-section="invitation"]');
         const header = canvas.querySelector<HTMLElement>('[data-testid="royal-invitation-header"]');
         if (intro) canvas.style.setProperty("--royal-backdrop-height", `${Math.ceil(intro.offsetHeight + (header?.offsetHeight ?? 0) + 80)}px`);
-          const geometry = `${canvas.clientWidth}:${canvas.clientHeight}:${canvas.scrollHeight}:${intro?.offsetHeight}:${header?.offsetHeight}`;
+          const { width, height } = royalViewport(canvas);
+          const geometry = `${width}:${height}:${canvas.scrollHeight}:${intro?.offsetHeight}:${header?.offsetHeight}`;
           if (geometry !== previousGeometry) {
             previousGeometry = geometry;
             refreshRoyalScroll(canvas);
@@ -229,7 +229,6 @@ export function RoyalWeddingBody({
     const stopObserving = observeRoyalViewport(canvas, refresh);
     node.addEventListener("load", refresh, true);
     media.addEventListener("change", setup);
-    const navigate = (event: Event) => settleSections.get((event as CustomEvent<string>).detail)?.();
     const focus = (event: FocusEvent) => {
       if ((event.target as HTMLElement).closest('[data-section="invitee"]')) settleSections.get("invitee")?.();
       const group = (event.target as HTMLElement).closest<HTMLElement>("[data-rsvp-group]");
@@ -237,7 +236,6 @@ export function RoyalWeddingBody({
       settleSections.get("rsvp")?.();
       settleGroups.get(group)?.();
     };
-    canvas.addEventListener("royal-section-navigation", navigate);
     canvas.addEventListener("focusin", focus);
     setup();
     return () => {
@@ -245,7 +243,6 @@ export function RoyalWeddingBody({
       observer.disconnect();
       stopObserving();
       node.removeEventListener("load", refresh, true);
-      canvas.removeEventListener("royal-section-navigation", navigate);
       canvas.removeEventListener("focusin", focus);
       media.removeEventListener("change", setup);
       cancelAnimationFrame(frame);
