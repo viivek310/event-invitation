@@ -109,10 +109,10 @@ export const royalWeddingDemo: RoyalWeddingContent = {
   ].map((event) => ({ ...event, id: event.id as CeremonyKind, mapUrl })),
   invitee: {
     introduction:
-      "Your gracious presence and blessings are warmly solicited by",
+      "With heartfelt warmth, you are cordially invited by",
     elder: "Mrs. Savitri Devi Sharma",
     hosts: ["Kavita & Rajesh Sharma", "Sunita & Vikram Kapoor"],
-    signOff: "With love, the Sharma & Kapoor families",
+    signOff: "And the Sharma & Kapoor families",
   },
 };
 

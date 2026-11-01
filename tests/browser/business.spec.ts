@@ -67,6 +67,9 @@ test("cash sale, coupons, publishing, live RSVP, isolation, expiry, and feature 
     expect((await db.coupon.findUniqueOrThrow({where:{code:couponCode}})).used).toBe(1);
     expect((await call(`invitations/${invitationIds[1]}/activate`,{...sale,requestKey:crypto.randomUUID()})).status()).toBe(400);
     expect((await call(`invitations/${invitationIds[1]}/activate`,{...sale,requestKey:crypto.randomUUID(),couponCode:"",cash:1})).status()).toBe(400);
+    // Compile the guest endpoint before UI timing assertions on a cold dev server.
+    const invalidRsvp = await page.request.post(`${origin}/api/rsvp/${slug}`, { headers, data: {}, timeout: 90000 });
+    expect(invalidRsvp.status()).toBe(400);
     const live = await page.goto(`/invite/${slug}`); expect(live?.status()).toBe(200);
     const canvas = page.locator("[data-royal-scroll]"); await canvas.getByRole("button",{name:"Skip introduction"}).click();
     const form = canvas.locator('[data-section="rsvp"]');
@@ -75,7 +78,20 @@ test("cash sale, coupons, publishing, live RSVP, isolation, expiry, and feature 
     await form.getByText("Joyfully accept",{exact:true}).click();
     await form.getByLabel("Number of guests").fill("3");
     await form.getByRole("checkbox",{name:"The Wedding",exact:true}).check();
+    await expect(form.locator('label:has(input[type="radio"][value="attending"])')).toHaveCSS("border-color", "rgb(214, 188, 131)");
+    await form.getByLabel("Phone number").focus();
+    await expect(form.getByLabel("Phone number")).toHaveCSS("outline-style", "solid");
+    await page.route(`**/api/rsvp/${slug}`, route => route.fulfill({ status: 503, contentType: "application/json", body: JSON.stringify({ error: "Please try again shortly." }) }));
     await form.getByRole("button",{name:"Send RSVP"}).click();
+    await expect(form.getByRole("alert")).toHaveText("Please try again shortly.");
+    expect(await db.rsvp.count({where:{invitationId:id}})).toBe(0);
+    await expect(form.getByLabel("Your name",{exact:true})).toHaveValue("Guest One");
+    await page.unroute(`**/api/rsvp/${slug}`);
+    const [submitted] = await Promise.all([
+      page.waitForResponse(response => response.url().endsWith(`/api/rsvp/${slug}`) && response.request().method() === "POST", { timeout: 60000 }),
+      form.getByRole("button",{name:"Send RSVP"}).click(),
+    ]);
+    expect(submitted.status()).toBe(201);
     await expect(form.getByRole("heading",{name:"Thank you for your reply"})).toBeVisible();
     expect(await db.rsvp.count({where:{invitationId:id}})).toBe(1);
     const duplicate = await page.request.post(`${origin}/api/rsvp/${slug}`,{headers,data:{name:"Duplicate",phone:`+9193${stamp}`,email:"",attending:true,partySize:1,ceremonies:[]}});

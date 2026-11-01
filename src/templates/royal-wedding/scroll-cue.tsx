@@ -1,4 +1,5 @@
 import styles from "./scroll-cue.module.css";
+import { RoyalArrow, RoyalMark } from "./royal-icons";
 
 export interface ScrollCueProps {
   label?: string;
@@ -14,34 +15,17 @@ export function ScrollCue({
   return (
     <div
       className={`${styles.cue} ${className ?? ""}`.trim()}
-      role="status"
+      role="note"
       aria-label={label}
       data-scroll-cue
     >
       <div className={styles.capsule}>
-        <span className={styles.ornament} aria-hidden="true">
-          ✦
-        </span>
+        <RoyalMark className={styles.ornament} />
         <span className={styles.text}>{text}</span>
-        <span className={styles.ornament} aria-hidden="true">
-          ✦
-        </span>
+        <RoyalMark className={styles.ornament} />
       </div>
       <span className={styles.arrowContainer} aria-hidden="true">
-        <svg
-          className={styles.arrow}
-          viewBox="0 0 16 20"
-          fill="none"
-          xmlns="http://www.w3.org/2000/svg"
-        >
-          <path
-            d="M8 2.5v11m-4-4L8 13.5l4-4"
-            stroke="currentColor"
-            strokeWidth="1.25"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
-        </svg>
+        <RoyalArrow direction="down" className={styles.arrow} />
       </span>
     </div>
   );

@@ -8,23 +8,14 @@ import { formatRoyalDate } from "./content";
 import { Flourish } from "./artwork";
 import { royalMotion } from "./design";
 import { RoyalCorners } from "./royal-corners";
+import { RoyalMark } from "./royal-icons";
 import { ScrollCue } from "./scroll-cue";
 import styles from "./invitation.module.css";
+import { observeRoyalViewport, refreshRoyalScroll, royalViewport } from "./scroll-layout";
+import { WeddingCountdown } from "./wedding-countdown";
+export { countdownParts } from "./wedding-countdown";
 
 gsap.registerPlugin(ScrollTrigger);
-
-export function countdownParts(startsAt: string, now: number) {
-  const remaining = Math.max(0, new Date(startsAt).getTime() - now);
-  return {
-    remaining,
-    values: [
-      Math.floor(remaining / 86400000),
-      Math.floor(remaining / 3600000) % 24,
-      Math.floor(remaining / 60000) % 60,
-      Math.floor(remaining / 1000) % 60,
-    ],
-  };
-}
 
 export function DateScene({
   content,
@@ -34,19 +25,13 @@ export function DateScene({
   active: boolean;
 }) {
   const root = useRef<HTMLElement>(null);
-  const heading = useRef<HTMLHeadingElement>(null);
-  const timeline = useRef<gsap.core.Timeline | null>(null);
   const celebrated = useRef(false);
-  const forced = useRef(false);
   const [mode, setMode] = useState<"pending" | "scroll" | "auto" | "reduced">(
     "pending",
   );
   const compact = mode === "auto" || mode === "reduced";
-  const focusFrame = useRef(0);
-  const [forcedDate, setForcedDate] = useState(false);
   const [settled, setSettled] = useState(false);
   const [celebrating, setCelebrating] = useState(false);
-  const [now, setNow] = useState<number | null>(null);
   const date = new Date(`${content.weddingDate}T12:00:00Z`);
   const year = date.getUTCFullYear();
   const dayValues = Array.from({ length: date.getUTCDate() }, (_, i) =>
@@ -58,57 +43,47 @@ export function DateScene({
     ),
   );
   const yearValues = Array.from({ length: 4 }, (_, i) => String(year - 3 + i));
-  const count =
-    now === null ? null : countdownParts(content.weddingStartsAt, now);
 
   useEffect(() => {
     if (!active || !root.current) return;
     const node = root.current;
     const canvas = node.closest<HTMLElement>("[data-royal-scroll]")!;
     const media = matchMedia("(prefers-reduced-motion: reduce)");
-    let frame = 0;
     const measure = () => {
-      node.style.setProperty("--scene-height", `${canvas.clientHeight}px`);
+      const { height } = royalViewport(canvas);
+      node.style.setProperty("--scene-height", `${height}px`);
       node.style.setProperty(
         "--date-scene-height",
-        `${canvas.clientHeight * (1 + royalMotion.dateRollScreens + royalMotion.dateHoldScreens)}px`,
+        `${height * (1 + royalMotion.dateRollScreens + royalMotion.dateCelebrationScreens + royalMotion.dateHoldScreens)}px`,
       );
+      const sticky = node.querySelector<HTMLElement>(`[data-date-sticky]`)!;
+      const inset = parseFloat(getComputedStyle(sticky).getPropertyValue("--date-pinned-inset")) || 35;
+      const requiredHeight = [...sticky.children].reduce((total, child) => {
+        const element = child as HTMLElement;
+        const css = getComputedStyle(element);
+        if (css.position === "absolute") return total;
+        return total + element.offsetHeight + (parseFloat(css.marginTop) || 0) + (parseFloat(css.marginBottom) || 0);
+      }, inset * 2);
       setMode(
         media.matches
           ? "reduced"
-          : canvas.clientHeight < 520
+          : height < 520 || requiredHeight > height
             ? "auto"
             : "scroll",
       );
-      cancelAnimationFrame(frame);
-      cancelAnimationFrame(focusFrame.current);
-      frame = requestAnimationFrame(() =>
-        timeline.current?.scrollTrigger?.refresh(),
-      );
+      refreshRoyalScroll(canvas);
     };
+    const stopObserving = observeRoyalViewport(canvas, measure);
     const observer = new ResizeObserver(measure);
-    observer.observe(canvas);
+    node.querySelectorAll("[data-date-card], [data-date-heading], [data-scroll-cue]").forEach(element => observer.observe(element));
     media.addEventListener("change", measure);
     measure();
     return () => {
+      stopObserving();
       observer.disconnect();
       media.removeEventListener("change", measure);
-      cancelAnimationFrame(frame);
     };
   }, [active]);
-
-  useEffect(() => {
-    if (!active) return;
-    const update = () => {
-      const time = Date.now();
-      setNow(time);
-      if (time >= new Date(content.weddingStartsAt).getTime())
-        clearInterval(interval);
-    };
-    const interval = setInterval(update, 1000);
-    update();
-    return () => clearInterval(interval);
-  }, [active, content.weddingStartsAt]);
 
   useEffect(() => {
     if (!active || !root.current) return;
@@ -123,7 +98,7 @@ export function DateScene({
       const details = node.querySelector("[data-date-details]");
       const columns = node.querySelectorAll("[data-wheel-column]");
       const detailItems = node.querySelectorAll("[data-detail]");
-      if (mode === "reduced" || forced.current) {
+      if (mode === "reduced") {
         gsap.set([...tracks, ...columns, ...detailItems], {
           y: 0,
           autoAlpha: 1,
@@ -153,7 +128,7 @@ export function DateScene({
         );
       let wasFinal = false;
       function finishDate(final: boolean) {
-        if (forced.current || final === wasFinal) return;
+        if (final === wasFinal) return;
         wasFinal = final;
         setSettled(final);
         if (final) detailsTimeline.restart();
@@ -179,7 +154,7 @@ export function DateScene({
                 scroller: canvas,
                 start: "top top",
                 end: () =>
-                  `+=${canvas.clientHeight * royalMotion.dateRollScreens}`,
+                  `+=${royalViewport(canvas).height * royalMotion.dateRollScreens}`,
                 scrub: 0.55,
                 invalidateOnRefresh: true,
                 onUpdate: (self) => {
@@ -210,36 +185,47 @@ export function DateScene({
           i * 0.95 + 0.12,
         );
       });
-      timeline.current = tl;
     }, node);
     return () => {
       ctx.revert();
-      timeline.current = null;
     };
-  }, [active, mode, forcedDate, content.weddingDate]);
+  }, [active, mode, content.weddingDate]);
 
   useEffect(() => {
     if (!celebrating || !root.current) return;
+    const stage = root.current.querySelector<HTMLElement>("[data-date-sticky]")!;
+    const card = stage.querySelector<HTMLElement>("[data-date-card]")!.getBoundingClientRect();
+    const bounds = stage.getBoundingClientRect();
+    const width = bounds.width;
+    const height = bounds.height;
+    const colors = ["#D6BC83", "#F0DDB3", "#B68A50", "#E8CCA0"];
     const running = [
       ...root.current.querySelectorAll<HTMLElement>("[data-particle]"),
     ].map((particle, i) => {
-      const angle = (i * 137.5 * Math.PI) / 180;
-      const spread = 70 + (i % 7) * 24;
-      return particle.animate(
-        [
-          { opacity: 0, transform: "translate(0, 0) rotate(0deg)" },
-          {
-            opacity: 1,
-            transform: `translate(${Math.cos(angle) * spread}px, ${-50 - Math.abs(Math.sin(angle)) * 180}px) rotate(${i * 29}deg)`,
-            offset: 0.35,
-          },
-          {
-            opacity: 0,
-            transform: `translate(${Math.cos(angle) * spread * 1.3}px, 220px) rotate(${i * 73}deg)`,
-          },
-        ],
-        { duration: royalMotion.confetti, easing: "ease-out", fill: "both" },
-      );
+      const seed = (salt: number) => {
+        const value = Math.sin((i + 1) * 12.9898 + salt * 78.233) * 43758.5453;
+        return value - Math.floor(value);
+      };
+      const petal = particle.hasAttribute("data-petal");
+      const side = i % 2 === 0 ? 1 : -1;
+      const originX = card.left - bounds.left + card.width * (side > 0 ? .12 : .88);
+      const originY = card.top - bounds.top + card.height * .7;
+      const spread = width * (.12 + seed(1) * .2) * side;
+      const lift = height * (.55 + seed(2) * .24);
+      const fall = height * (1.05 + seed(3) * .25);
+      const spin = (petal ? 110 : 480) * (seed(4) > .5 ? 1 : -1);
+      particle.style.background = petal ? (i % 8 === 0 ? "#D7A7B2" : "#F0DDC8") : colors[i % colors.length];
+      particle.style.width = `${petal ? 7 + seed(5) * 3 : 3 + seed(5) * 3}px`;
+      particle.style.height = `${petal ? 11 + seed(6) * 4 : 6 + seed(6) * 4}px`;
+      const frames = Array.from({ length: 25 }, (_, step) => {
+        const t = step / 24;
+        const x = originX + spread * (1 - Math.exp(-2.8 * t)) + Math.sin(t * Math.PI * 5 + seed(7) * 6) * t * 12;
+        const y = originY - lift * (1 - Math.pow(1 - t, 3)) + fall * t * t;
+        return { offset: t, opacity: t === 0 || t === 1 ? 0 : t < .75 ? .9 : (1 - t) * 3.6,
+          transform: `translate3d(${x}px, ${y}px, 0) rotate(${seed(8) * 180 + spin * t}deg) rotateY(${t * (petal ? 160 : 640)}deg)` };
+      });
+      return particle.animate(frames, { duration: royalMotion.confetti * (.85 + seed(9) * .15),
+        delay: seed(10) * 160, easing: "linear", fill: "both" });
     });
     let alive = true;
     void Promise.all(running.map((a) => a.finished))
@@ -253,22 +239,6 @@ export function DateScene({
     };
   }, [celebrating]);
 
-  function showDate() {
-    forced.current = true;
-    setForcedDate(true);
-    setSettled(true);
-    if (
-      !matchMedia("(prefers-reduced-motion: reduce)").matches &&
-      !celebrated.current
-    ) {
-      celebrated.current = true;
-      setCelebrating(true);
-    }
-    focusFrame.current = requestAnimationFrame(() =>
-      heading.current?.focus({ preventScroll: true }),
-    );
-  }
-
   return (
     <section
       ref={root}
@@ -280,12 +250,12 @@ export function DateScene({
       data-date-mode={mode}
       aria-labelledby="royal-date-title"
     >
-      <div className={styles.dateSticky}>
+      <div className={styles.dateSticky} data-date-sticky>
         <div className={styles.dateMandala} aria-hidden="true">
-          ✧
+          <RoyalMark />
         </div>
-        <h2 className={styles.dateHeading}>{content.dateMessage}</h2>
-        <div className={styles.dateFolio}>
+        <h2 className={styles.dateHeading} data-date-heading>{content.dateMessage}</h2>
+        <div className={styles.dateFolio} data-date-card>
           <RoyalCorners />
           <div className={styles.wheels} aria-hidden="true">
             {[dayValues, monthValues, yearValues].map((values, i) => (
@@ -295,7 +265,7 @@ export function DateScene({
                 </span>
                 <div className={styles.wheel}>
                   <div data-wheel-track className={styles.wheelTrack}>
-                    {(mode === "reduced" || forcedDate
+                    {(mode === "reduced"
                       ? [values.at(-1)!]
                       : values
                     ).map((value) => (
@@ -311,7 +281,7 @@ export function DateScene({
             className={styles.dateDetails}
             aria-hidden={!settled}
           >
-            <h2 id="royal-date-title" ref={heading} tabIndex={-1} data-detail>
+            <h2 id="royal-date-title" data-detail>
               Save the Date
               <span className={styles.srOnly}>
                 {" "}
@@ -323,38 +293,12 @@ export function DateScene({
             </div>
             <div className={styles.dateLocation} data-detail>
               <p>{formatRoyalDate(content.weddingDate)}</p>
-              <p>{content.venue}</p>
             </div>
-            <div
-              className={styles.countdown}
-              aria-label="Time until the wedding"
-              data-detail
-            >
-              {count?.remaining === 0 ? (
-                <p>The celebration has begun</p>
-              ) : (
-                ["Days", "Hours", "Minutes", "Seconds"].map((label, i) => (
-                  <div key={label}>
-                    <strong>
-                      {count ? String(count.values[i]).padStart(2, "0") : "—"}
-                    </strong>
-                    <span>{label}</span>
-                  </div>
-                ))
-              )}
-            </div>
+            <WeddingCountdown startsAt={content.weddingStartsAt} active={active} />
           </div>
         </div>
-        <button
-          type="button"
-          className={styles.dateShortcut}
-          onClick={showDate}
-          aria-label="Show wedding date"
-          hidden={settled}
-        >
-          Show date <span aria-hidden="true">↗</span>
-        </button>
         <ScrollCue
+          className={styles.dateScrollCue}
           text="Scroll to continue"
           label={settled ? "Scroll to continue to celebrations" : "Scroll to continue"}
         />
@@ -364,11 +308,11 @@ export function DateScene({
             data-testid="date-confetti"
             aria-hidden="true"
           >
-            {Array.from({ length: 42 }, (_, i) => (
+            {Array.from({ length: royalMotion.confettiParticles }, (_, i) => (
               <i
                 key={i}
                 data-particle
-                data-petal={i % 3 === 0 ? "true" : undefined}
+                data-petal={i % 4 === 0 ? "true" : undefined}
               />
             ))}
           </div>

@@ -14,6 +14,10 @@ import { royalGujarati } from "./font";
 import styles from "./opening.module.css";
 import { usePalaceArtwork } from "../artwork-context";
 import { royalBody, royalDisplay } from "../fonts";
+import { PalaceImage } from "../palace-image";
+import { observeRoyalViewport } from "../scroll-layout";
+import { RoyalExplore } from "../explore";
+import { RoyalArrow } from "../royal-icons";
 
 type Asset = keyof typeof openingConfig.assets;
 type Props = {
@@ -106,7 +110,7 @@ export function RoyalOpening({ onPhaseChange, onRetry, children, openingEnabled 
     async function prepareFont() {
       try {
         const palaceImage = new window.Image();
-        palaceImage.src = heroArtwork.src;
+        palaceImage.src = matchMedia("(max-width: 600px)").matches ? heroArtwork.mobile : heroArtwork.src;
         await Promise.allSettled([
           palaceImage.decode(),
           document.fonts.load(
@@ -134,7 +138,7 @@ export function RoyalOpening({ onPhaseChange, onRetry, children, openingEnabled 
     return () => {
       disposed = true;
     };
-  }, [changePhase, heroArtwork.src]);
+  }, [changePhase, heroArtwork.src, heroArtwork.mobile]);
 
   useEffect(() => {
     const media = window.matchMedia("(prefers-reduced-motion: reduce)");
@@ -143,9 +147,8 @@ export function RoyalOpening({ onPhaseChange, onRetry, children, openingEnabled 
         complete();
     };
     media.addEventListener("change", reduce);
-    let previous = root.current?.getBoundingClientRect();
-    const observer = new ResizeObserver(([entry]) => {
-      const { width, height } = entry.contentRect;
+    let previous: { width: number; height: number } | undefined;
+    const stopObserving = root.current ? observeRoyalViewport(root.current, ({ width, height }) => {
       if (
         previous &&
         (Math.abs(previous.width - width) > 2 ||
@@ -153,11 +156,10 @@ export function RoyalOpening({ onPhaseChange, onRetry, children, openingEnabled 
         movingPhases.includes(activePhase.current)
       )
         complete();
-      previous = { width, height } as DOMRect;
-    });
-    if (root.current) observer.observe(root.current);
+      previous = { width, height };
+    }) : undefined;
     return () => {
-      observer.disconnect();
+      stopObserving?.();
       media.removeEventListener("change", reduce);
       cancelAnimations();
       if (focusFrame.current !== null) cancelAnimationFrame(focusFrame.current);
@@ -439,8 +441,6 @@ export function RoyalOpening({ onPhaseChange, onRetry, children, openingEnabled 
       value,
     ]),
   ) as CSSProperties;
-  (theme as Record<string, string>)["--royal-palace-image"] =
-    `url("${heroArtwork.src}")`;
   const imageEvents = (asset: Asset) => ({
     onLoad: () => assetLoaded(asset),
     onError: () => assetFailed(asset),
@@ -449,14 +449,16 @@ export function RoyalOpening({ onPhaseChange, onRetry, children, openingEnabled 
   return (
     <section
       ref={root}
-      className={styles.stage}
+      className={`${styles.stage} ${royalBody.variable}`}
       style={theme}
       data-phase={phase}
       data-ganesh-step={ganeshStep}
       data-royal-scroll
+      tabIndex={phase === "complete" ? 0 : undefined}
       aria-label="Royal Wedding opening animation"
       aria-busy={busy}
     >
+      <RoyalExplore canvas={root} active={phase === "complete"} />
       <div className={styles.ambient} aria-hidden="true">
         {Array.from({ length: 10 }, (_, i) => (
           <span
@@ -523,7 +525,7 @@ export function RoyalOpening({ onPhaseChange, onRetry, children, openingEnabled 
           className={styles.invitationBackdrop}
           data-palace-backdrop
           aria-hidden="true"
-        />
+        ><PalaceImage scene="hero" eager /></div>
         <header
           className={styles.ganeshHeader}
           hidden={!ganeshaEnabled}
@@ -592,11 +594,11 @@ export function RoyalOpening({ onPhaseChange, onRetry, children, openingEnabled 
           {phase === "error"
             ? "Continue without animation"
             : "Skip introduction"}
-          <span aria-hidden="true">→</span>
+          <RoyalArrow />
         </button>
       )}
       <div ref={prompt} className={styles.prompt} hidden={!openingEnabled}>
-        <span id="royal-opening-hint" className={styles.promptHint}>Tap to open</span>
+        <span id="royal-opening-hint" className={styles.promptHint}>Tap the seal to open your invitation</span>
       </div>
       {phase === "loading" && (
         <div className={styles.loading} role="status">

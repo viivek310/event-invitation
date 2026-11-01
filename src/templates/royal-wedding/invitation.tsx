@@ -12,9 +12,11 @@ import { PalaceImage } from "./palace-image";
 import { EventsSequence } from "./events-sequence";
 import { RsvpReview } from "./rsvp-review";
 import { RoyalCorners } from "./royal-corners";
+import { RoyalMark } from "./royal-icons";
 import { ScrollCue } from "./scroll-cue";
 import { royalCreator } from "./design";
 import styles from "./invitation.module.css";
+import { observeRoyalViewport, refreshRoyalScroll } from "./scroll-layout";
 
 gsap.registerPlugin(ScrollTrigger);
 export type RoyalReviewMode = "demo" | "admin-review" | "live";
@@ -33,6 +35,7 @@ export function RoyalWeddingBody({
   live?: TemplateProps["live"];
 }) {
   const root = useRef<HTMLDivElement>(null);
+  const revealedGroups = useRef(new WeakSet<HTMLElement>());
   useLayoutEffect(() => {
     if (!active || !root.current) return;
     const node = root.current;
@@ -40,8 +43,12 @@ export function RoyalWeddingBody({
     const media = matchMedia("(prefers-reduced-motion: reduce)");
     let ctx: gsap.Context | undefined;
     let frame = 0;
+    const settleSections = new Map<string, () => void>();
+    const settleGroups = new Map<HTMLElement, () => void>();
     function setup() {
       ctx?.revert();
+      settleSections.clear();
+      settleGroups.clear();
       if (media.matches) return;
       ctx = gsap.context(() => {
         node.querySelectorAll<HTMLElement>("[data-scene]").forEach((scene) => {
@@ -84,19 +91,51 @@ export function RoyalWeddingBody({
               },
               0.5,
             );
+            settleSections.set("invitation", () => { sequence.progress(1); });
             return;
           }
-          // Keep the established burgundy surroundings and animate stationery
-          // through small, coordinated movements rather than a perspective flip.
-          if (scene.dataset.section === "invitee" || scene.querySelector('[data-section="rsvp"]')) {
-            const paper = scene.querySelector(`.${styles.closingCard}, .${styles.rsvpSection}`);
+          if (scene.querySelector('[data-section="rsvp"]')) {
             const sequence = gsap.timeline({
               scrollTrigger: { trigger: scene, scroller: canvas, start: "top 88%", once: true },
             });
-            if (paper) sequence.from(paper,
-              { opacity: 0, y: 16, duration: 0.75, ease: "power2.out" }, 0);
-            sequence.from(scene.querySelectorAll("[data-enter]"),
-              { opacity: 0, y: 10, duration: 0.6, stagger: 0.07, ease: "power2.out" }, 0.2);
+            sequence.from(scene.querySelector("[data-rsvp-heading]"),
+              { opacity: 0, y: 12, duration: 0.65, ease: "power2.out" }, 0);
+            sequence.from(scene.querySelector(`.${styles.rsvpSurface}`),
+              { opacity: 0, duration: 0.75, ease: "power2.out" }, 0.08);
+            scene.querySelectorAll<HTMLElement>("[data-rsvp-group]").forEach(group => {
+              if (revealedGroups.current.has(group)) return;
+              const tween = gsap.fromTo(group, { opacity: 0, y: 12 }, {
+                opacity: 1, y: 0, duration: 0.65, ease: "power2.out",
+                onComplete: () => { revealedGroups.current.add(group); },
+                scrollTrigger: { trigger: group, scroller: canvas, start: "top 95%", once: true },
+              });
+              settleGroups.set(group, () => { tween.progress(1); });
+            });
+            settleSections.set("rsvp", () => {
+              sequence.progress(1);
+              const bounds = canvas.getBoundingClientRect();
+              settleGroups.forEach((settle, group) => {
+                const rect = group.getBoundingClientRect();
+                if (rect.top < bounds.bottom && rect.bottom > bounds.top) settle();
+              });
+            });
+            return;
+          }
+          if (scene.dataset.section === "invitee") {
+            const paper = scene.querySelector(`.${styles.closingCard}`);
+            const sequence = gsap.timeline({
+              scrollTrigger: { trigger: scene, scroller: canvas, start: "top 88%", once: true },
+            });
+            sequence.from(scene.querySelector("[data-closing-badge]"),
+              { opacity: 0, y: 8, duration: 0.55, ease: "power2.out" }, 0);
+            if (paper) {
+              sequence.from(paper, { opacity: 0, duration: 0.75, ease: "power2.out" }, 0.1);
+              sequence.from(paper.querySelectorAll("[data-enter]"),
+                { opacity: 0, y: 10, duration: 0.6, stagger: 0.07, ease: "power2.out" }, 0.25);
+            }
+            sequence.from(scene.querySelector(`.${styles.creatorCredit}`),
+              { opacity: 0, y: 8, duration: 0.6, ease: "power2.out" }, 0.6);
+            settleSections.set("invitee", () => { sequence.progress(1); });
             return;
           }
           const entrance = gsap.timeline({
@@ -170,23 +209,44 @@ export function RoyalWeddingBody({
         });
       }, node);
     }
+    let previousGeometry = "";
     const refresh = () => {
       cancelAnimationFrame(frame);
       frame = requestAnimationFrame(() => {
-        ScrollTrigger.getAll()
-          .filter((trigger) => trigger.scroller === canvas)
-          .forEach((trigger) => trigger.refresh());
+        const intro = node.querySelector<HTMLElement>('[data-section="invitation"]');
+        const header = canvas.querySelector<HTMLElement>('[data-testid="royal-invitation-header"]');
+        if (intro) canvas.style.setProperty("--royal-backdrop-height", `${Math.ceil(intro.offsetHeight + (header?.offsetHeight ?? 0) + 80)}px`);
+          const geometry = `${canvas.clientWidth}:${canvas.clientHeight}:${canvas.scrollHeight}:${intro?.offsetHeight}:${header?.offsetHeight}`;
+          if (geometry !== previousGeometry) {
+            previousGeometry = geometry;
+            refreshRoyalScroll(canvas);
+          }
       });
     };
     const observer = new ResizeObserver(refresh);
-    observer.observe(canvas);
+    const intro = node.querySelector('[data-section="invitation"]');
+    if (intro) observer.observe(intro);
+    const stopObserving = observeRoyalViewport(canvas, refresh);
     node.addEventListener("load", refresh, true);
     media.addEventListener("change", setup);
+    const navigate = (event: Event) => settleSections.get((event as CustomEvent<string>).detail)?.();
+    const focus = (event: FocusEvent) => {
+      if ((event.target as HTMLElement).closest('[data-section="invitee"]')) settleSections.get("invitee")?.();
+      const group = (event.target as HTMLElement).closest<HTMLElement>("[data-rsvp-group]");
+      if (!group) return;
+      settleSections.get("rsvp")?.();
+      settleGroups.get(group)?.();
+    };
+    canvas.addEventListener("royal-section-navigation", navigate);
+    canvas.addEventListener("focusin", focus);
     setup();
     return () => {
       ctx?.revert();
       observer.disconnect();
+      stopObserving();
       node.removeEventListener("load", refresh, true);
+      canvas.removeEventListener("royal-section-navigation", navigate);
+      canvas.removeEventListener("focusin", focus);
       media.removeEventListener("change", setup);
       cancelAnimationFrame(frame);
     };
@@ -252,20 +312,11 @@ export function RoyalWeddingBody({
         data-scene
         aria-labelledby="royal-invitee-title"
       >
-        <div className={styles.closingBackdrop} aria-hidden="true">
-          <PalaceImage scene="hero" />
-        </div>
+        <h2 id="royal-invitee-title" className={styles.closingBadge} data-closing-badge>
+          <span aria-hidden="true" />Inviting You<span aria-hidden="true" />
+        </h2>
         <div className={styles.closingCard}>
           <RoyalCorners />
-          <span className={styles.eyebrow} data-enter>
-            An invitation from our hearts
-          </span>
-          <h2 id="royal-invitee-title" data-enter>
-            Your presence,
-            <br />
-            <em>our greatest joy.</em>
-          </h2>
-          <Flourish className={styles.flourish} />
           <p className={styles.closingLead} data-enter>
             {content.invitee.introduction}
           </p>
@@ -273,9 +324,6 @@ export function RoyalWeddingBody({
             {content.invitee.elder}
           </p>
           <Flourish className={styles.closingDivider} />
-          <span className={styles.hostLabel} data-enter>
-            Together with our loving hosts
-          </span>
           <div className={styles.hosts} data-enter>
             {content.invitee.hosts.map((host) => (
               <p key={host}>{host}</p>
@@ -285,6 +333,9 @@ export function RoyalWeddingBody({
           <p className={styles.signOff} data-enter>
             {content.invitee.signOff}
           </p>
+          <span className={styles.closingOrnament} data-enter aria-hidden="true">
+            <RoyalMark />
+          </span>
         </div>
         <footer className={styles.creatorCredit} aria-label="Invitation creator">
           <p>Crafted with <span aria-label="love">♥</span> by <strong>{royalCreator.name}</strong></p>

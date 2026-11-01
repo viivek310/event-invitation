@@ -9,21 +9,13 @@ export function Flourish({ className }: { className?: string }) {
       stroke="currentColor"
       aria-hidden="true"
     >
-      <path d="M12 18h24m168 0h24" strokeWidth=".5" opacity=".25" />
-      <path d="M36 18h61m46 0h61" strokeWidth=".7" opacity=".55" />
-      <path d="m120 10 8 8-8 8-8-8Z" strokeWidth=".8" />
-      <path
-        d="m120 15 3 3-3 3-3-3Z"
-        fill="currentColor"
-        stroke="none"
-        opacity=".85"
-      />
-      <path
-        d="m104 16 2 2-2 2-2-2Zm32 0 2 2-2 2-2-2Z"
-        fill="currentColor"
-        stroke="none"
-        opacity=".5"
-      />
+      <path d="M8 18h22m180 0h22" strokeWidth=".65" opacity=".18" />
+      <path d="M30 18h62m56 0h62" strokeWidth=".7" opacity=".45" />
+      <path d="M62 14h30m56 0h30" strokeWidth=".4" opacity=".2" />
+      <path d="m120 4 4.5 9.5L134 18l-9.5 4.5L120 32l-4.5-9.5L106 18l9.5-4.5Z" strokeWidth=".8" />
+      <path d="m120 12 6 6-6 6-6-6Z" strokeWidth=".6" opacity=".6" />
+      <circle cx="120" cy="18" r="1.6" fill="currentColor" stroke="none" />
+      <path d="m98 16 2 2-2 2-2-2Zm44 0 2 2-2 2-2-2Z" fill="currentColor" stroke="none" opacity=".6" />
     </svg>
   );
 }

@@ -263,7 +263,7 @@ test("mobile layer alignment and resize do not strand the animation", async ({
   expect(sealBox.height).toBeGreaterThanOrEqual(44);
   expect(sealBox.x + sealBox.width / 2).toBeCloseTo(flap!.x + flap!.width / 2, 0);
   expect(sealBox.y + sealBox.height / 2).toBeCloseTo(flap!.y + flap!.height * 0.515, 0);
-  await expect(stage.getByText("Tap to open", { exact: true })).toBeVisible();
+  await expect(stage.getByText("Tap the seal to open your invitation", { exact: true })).toBeVisible();
   await stage.screenshot({ path: testInfo.outputPath("mobile-envelope.png") });
   await stage.getByRole("button", { name: "Open invitation" }).click();
   await expect(stage).toHaveAttribute("data-phase", "emerging");

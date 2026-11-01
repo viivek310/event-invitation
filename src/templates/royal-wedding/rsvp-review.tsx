@@ -12,15 +12,15 @@ export function RsvpReview({ content, live, demo = false }: { content: RoyalWedd
   const [success, setSuccess] = useState(false);
   return (
     <section className={styles.rsvpSection} data-section="rsvp" aria-labelledby="royal-rsvp-title">
-      <RoyalCorners />
-      <div data-enter>
+      <div className={styles.rsvpSurface} aria-hidden="true"><RoyalCorners /></div>
+      <div className={styles.rsvpHeading} data-rsvp-heading>
         <span className={styles.eyebrow}>Your reply</span>
         <h2 id="royal-rsvp-title">Kindly RSVP</h2>
         <p className={styles.sectionMessage}>We look forward to celebrating with you.</p>
-        {demo && <p className={styles.sectionMessage}>Preview only — responses cannot be sent.</p>}
+        {demo && <p className={styles.rsvpPreviewNote}>Preview only — responses cannot be sent.</p>}
         <Flourish className={styles.flourish} />
       </div>
-      {success ? <div className={styles.rsvpConfirmation} role="status"><h3>Thank you for your reply</h3><p>Your response has been received by the hosts.</p></div> : <form onSubmit={async event => {
+      {success ? <div className={styles.rsvpConfirmation} role="status"><span className={styles.eyebrow}>Reply received</span><h3>Thank you for your reply</h3><p>Your response has been received by the hosts.</p></div> : <form aria-busy={busy} onSubmit={async event => {
         event.preventDefault(); if (!live || busy) return;
         const form = new FormData(event.currentTarget);
         const attending = form.get("attendance") === "attending";
@@ -36,9 +36,9 @@ export function RsvpReview({ content, live, demo = false }: { content: RoyalWedd
         } catch(e) { setError(e instanceof Error ? e.message : "Unable to send. Please try again."); }
         finally { setBusy(false); }
       }}>
-      <fieldset disabled={!live || busy} className={styles.rsvpFields}>
-        <legend className={styles.srOnly}>{live ? "Your RSVP" : "RSVP design review — responses are disabled"}</legend>
-        <fieldset className={styles.rsvpGroup} data-enter>
+      <fieldset disabled={busy} className={styles.rsvpFields}>
+        <legend className={styles.srOnly}>{live ? "Your RSVP" : "RSVP preview — submission is disabled"}</legend>
+        <fieldset className={styles.rsvpGroup} data-rsvp-group>
           <legend>Your details</legend>
           <label>Your name<input name="guest-name" autoComplete="name" placeholder="Full name" required maxLength={120} /></label>
           <div className={styles.fieldRow}>
@@ -46,7 +46,7 @@ export function RsvpReview({ content, live, demo = false }: { content: RoyalWedd
             <label>Email (optional)<input name="email" type="email" autoComplete="email" placeholder="Email address" /></label>
           </div>
         </fieldset>
-        <fieldset className={styles.rsvpGroup} data-enter>
+        <fieldset className={styles.rsvpGroup} data-rsvp-group>
           <legend>Your attendance</legend>
           <div className={styles.attendanceOptions}>
             <label><input type="radio" name="attendance" value="attending" required /><span>Joyfully accept</span></label>
@@ -54,13 +54,13 @@ export function RsvpReview({ content, live, demo = false }: { content: RoyalWedd
           </div>
           <label>Number of guests<input className={styles.partySize} name="party-size" type="number" defaultValue={1} min={1} max={live?.partyLimit || 100} required /></label>
         </fieldset>
-        <fieldset className={`${styles.rsvpGroup} ${styles.ceremonyChoices}`} data-enter>
+        <fieldset className={`${styles.rsvpGroup} ${styles.ceremonyChoices}`} data-rsvp-group>
           <legend>Celebrations you’ll attend</legend>
           {content.ceremonies.map(event => <label key={event.id}>
             <input type="checkbox" name="ceremonies" value={event.id} />{event.name}
           </label>)}
         </fieldset>
-        {(!live || live.dietaryEnabled || live.accommodationEnabled) && <fieldset className={styles.rsvpGroup} data-enter>
+        {(!live || live.dietaryEnabled || live.accommodationEnabled) && <fieldset className={styles.rsvpGroup} data-rsvp-group>
           <legend>Guest preferences</legend>
           {(!live || live.dietaryEnabled) && <label>Dietary preferences (optional)<textarea name="dietary" rows={2} placeholder="Anything we should know?" maxLength={500} /></label>}
           {(!live || live.accommodationEnabled) && <label>Accommodation (optional)<select name="accommodation" defaultValue="">
@@ -68,8 +68,8 @@ export function RsvpReview({ content, live, demo = false }: { content: RoyalWedd
           </select></label>}
         </fieldset>}
         {error && <p className={styles.rsvpError} role="alert">{error}</p>}
-        <div className={styles.rsvpActions} data-enter>
-          <button type={live ? "submit" : "button"} className={styles.goldButton}>{busy ? "Sending…" : "Send RSVP"} <span aria-hidden="true">↗</span></button>
+        <div className={styles.rsvpActions} data-rsvp-group>
+          <button type={live ? "submit" : "button"} disabled={!live || busy} className={styles.goldButton}>{busy ? "Sending…" : "Send RSVP"}</button>
         </div>
       </fieldset>
       </form>}

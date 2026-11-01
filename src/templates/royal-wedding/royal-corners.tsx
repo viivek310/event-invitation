@@ -12,27 +12,15 @@ export function RoyalCorners() {
           strokeLinecap="round"
           strokeLinejoin="round"
         >
-          <path d="M5 65V24C5 13.5 13.5 5 24 5h41" strokeWidth=".85" />
-          <path
-            d="M11 58V26c0-8.3 6.7-15 15-15h32"
-            strokeWidth=".55"
-            opacity=".6"
-          />
-          <path
-            d="M18 18c15-2 27 7 29 22-15 2-27-7-29-22Zm0 0c1 13 12 25 25 29"
-            strokeWidth=".75"
-          />
-          <path
-            d="M24 12c4 7 6 15 5 22M12 24c7 4 15 6 22 5M44 44l9 9"
-            strokeWidth=".6"
-            opacity=".75"
-          />
-          <path
-            d="m18 14 4 4-4 4-4-4Zm35 36 3 3-3 3-3-3Z"
-            fill="currentColor"
-            stroke="none"
-          />
-          <path d="M5 54v11h11M54 5h11v11" strokeWidth="1.15" />
+          <path d="M6 66V25C6 14.5 14.5 6 25 6h41" strokeWidth="1.1" />
+          <path d="M12 58V27c0-8.3 6.7-15 15-15h31" strokeWidth=".65" opacity=".5" />
+          <path d="M19 48V30c0-6.1 4.9-11 11-11h18" strokeWidth=".8" opacity=".7" />
+          <path d="M22 22h18M22 22v18m1-17 19 19m-18-18 19 8m-19-8 8 19"
+            strokeWidth=".65" opacity=".65" />
+          <path d="m22 16 6 6-6 6-6-6Z" strokeWidth=".9" />
+          <path d="m22 20 2 2-2 2-2-2Z" fill="currentColor" stroke="none" />
+          <path d="M6 53v13h13M53 6h13v13" strokeWidth="1.3" />
+          <path d="m46 43 3 3-3 3-3-3Z" strokeWidth=".7" opacity=".7" />
         </svg>
       ))}
     </div>

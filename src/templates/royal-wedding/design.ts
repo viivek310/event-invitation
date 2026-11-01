@@ -8,9 +8,11 @@ export const royalCreator = {
 export const royalMotion = {
   entrance: 800,
   stagger: 110,
-  confetti: 2000,
+  confetti: 2800,
+  confettiParticles: 56,
   dateRollScreens: 0.9,
-  dateHoldScreens: 1.5,
+  dateCelebrationScreens: 0.75,
+  dateHoldScreens: 2,
 } as const;
 
 export const royalEvents = {
@@ -19,6 +21,9 @@ export const royalEvents = {
   exitScreens: 0.35,
   mobileScrub: 0.4,
   desktopScrub: 0.6,
+  snapDelay: 250,
+  snapMinDuration: 0.35,
+  snapMaxDuration: 0.55,
   minimumImageHeight: 120,
   maximumImageHeight: 360,
   accents: {

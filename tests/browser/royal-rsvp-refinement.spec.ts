@@ -15,7 +15,12 @@ test("public full-page preview shows static RSVP without submitting responses", 
     await rsvp.scrollIntoViewIfNeeded();
     await expect(rsvp.getByRole("heading", { name: "Kindly RSVP" })).toBeVisible();
     await expect(rsvp.getByText("Preview only — responses cannot be sent.")).toBeVisible();
-    for (const field of await rsvp.locator("input,select,textarea,button").all()) await expect(field).toBeDisabled();
+    for (const field of await rsvp.locator("input,select,textarea").all()) await expect(field).toBeEnabled();
+    await expect(rsvp.getByRole("button", { name: "Send RSVP" })).toBeDisabled();
+    await rsvp.getByLabel("Your name", { exact: true }).fill("Preview Guest");
+    await rsvp.getByRole("radio", { name: "Joyfully accept" }).check();
+    await rsvp.getByRole("checkbox").first().check();
+    await expect(rsvp.getByLabel("Your name", { exact: true })).toHaveValue("Preview Guest");
     await rsvp.locator("form").evaluate(form => form.dispatchEvent(new Event("submit", { bubbles: true, cancelable: true })));
     expect(submissions).toEqual([]);
     await expect(rsvp.getByText("Your response has been received by the hosts.")).toHaveCount(0);
@@ -23,7 +28,7 @@ test("public full-page preview shows static RSVP without submitting responses", 
 });
 
 for (const viewport of [{ width: 1440, height: 1050 }, { width: 390, height: 844 }, { width: 588, height: 615 }]) {
-  test(`RSVP refinement retains burgundy surroundings and readable details at ${viewport.width}px`, async ({ page }, info) => {
+  test(`RSVP glass matches burgundy surroundings and readable details at ${viewport.width}px`, async ({ page }, info) => {
     await page.setViewportSize(viewport);
     await page.goto("/preview/royal-wedding");
     const canvas = page.locator("[data-royal-scroll]");
@@ -37,16 +42,30 @@ for (const viewport of [{ width: 1440, height: 1050 }, { width: 390, height: 844
     });
     await expect(rsvp).toHaveCSS("opacity", "1");
     await expect(rsvp.getByRole("heading", { name: "Kindly RSVP" })).toBeVisible();
+    await expect(rsvp.locator('[class*="rsvpSurface"]')).toHaveCSS("backdrop-filter", "blur(10px)");
+    await expect(rsvp).toHaveCSS("color", "rgb(247, 240, 226)");
     await expect(rsvp.getByRole("radio")).toHaveCount(2);
     await expect(rsvp.getByRole("checkbox")).toHaveCount(6);
     for (const field of await rsvp.locator("input,select,textarea,button").all()) {
-      await expect(field).toBeDisabled();
       await expect(field).toHaveCSS("font-size", "16px");
     }
+    for (const field of await rsvp.locator("input,select,textarea").all()) await expect(field).toBeEnabled();
+    await expect(rsvp.getByRole("button", { name: "Send RSVP" })).toBeDisabled();
+    const actionSpacing = await rsvp.getByRole("button", { name: "Send RSVP" }).evaluate(button => {
+      const panel = button.closest('[data-section="rsvp"]')!.getBoundingClientRect();
+      const bounds = button.getBoundingClientRect();
+      return panel.bottom - bounds.bottom;
+    });
+    expect(actionSpacing).toBeGreaterThanOrEqual(48);
+    const action = rsvp.getByRole("button", { name: "Send RSVP", exact: true });
+    await expect(action.locator("svg")).toHaveCount(0);
+    expect((await action.boundingBox())!.height).toBeGreaterThanOrEqual(56);
     await expect(rsvp.getByLabel("Your name")).toHaveAttribute("autocomplete", "name");
     await canvas.screenshot({ path: info.outputPath(`rsvp-${viewport.width}.png`) });
     await rsvp.getByText("Guest preferences", { exact: true }).scrollIntoViewIfNeeded();
     await canvas.screenshot({ path: info.outputPath(`preferences-${viewport.width}.png`) });
+    await action.scrollIntoViewIfNeeded();
+    await canvas.screenshot({ path: info.outputPath(`rsvp-action-${viewport.width}.png`) });
     const closing = body.locator('[data-section="invitee"]');
     await closing.scrollIntoViewIfNeeded();
     await expect(closing).toHaveCSS("background-color", "rgb(45, 14, 25)");
@@ -56,7 +75,7 @@ for (const viewport of [{ width: 1440, height: 1050 }, { width: 390, height: 844
     await expect(card).toHaveCSS("color", "rgb(247, 240, 226)");
     await expect(closing.getByText("Mrs. Savitri Devi Sharma")).toBeVisible();
     await expect(closing.getByText("Kavita & Rajesh Sharma")).toBeVisible();
-    await expect(closing.locator("picture")).toHaveCount(1);
+    await expect(closing.locator("picture, img")).toHaveCount(0);
     expect(await canvas.evaluate(node => node.scrollWidth <= node.clientWidth)).toBe(true);
     await canvas.screenshot({ path: info.outputPath(`invitee-${viewport.width}.png`) });
   });

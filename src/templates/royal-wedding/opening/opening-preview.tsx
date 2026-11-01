@@ -9,6 +9,8 @@ import type { OpeningPhase } from "./config";
 import styles from "./preview.module.css";
 import { RoyalWeddingBody } from "../invitation";
 import { royalWeddingDemo } from "../content";
+const reviewSections = ["invitation", "date", "events", "rsvp", "invitee"];
+const reviewWithoutRsvp = reviewSections.filter(section => section !== "rsvp");
 
 export function RoyalOpeningPreview() {
   const [revision, setRevision] = useState(0);
@@ -73,8 +75,8 @@ export function RoyalOpeningPreview() {
         </label>
         <span>
           {reviewRsvp
-            ? "Private design review: RSVP fields are disabled. Public demos never include this form."
-            : "Demo presentation: no RSVP form or submission flow."}
+            ? "Private design review: try the RSVP fields; submission is disabled, and no responses are saved."
+            : "RSVP is hidden for this design review."}
         </span>
       </div>
       <div
@@ -89,7 +91,8 @@ export function RoyalOpeningPreview() {
             <RoyalWeddingBody
               content={royalWeddingDemo}
               active={phase === "complete"}
-              mode={reviewRsvp ? "admin-review" : "demo"}
+              mode="admin-review"
+              sections={reviewRsvp ? reviewSections : reviewWithoutRsvp}
             />
           </RoyalOpening>
         </div>

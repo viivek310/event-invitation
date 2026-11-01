@@ -1,14 +1,24 @@
 import { test, expect } from "@playwright/test";
-import type { Page } from "@playwright/test";
+import type { Page, Locator } from "@playwright/test";
 
 const url = "/admin/templates/royal-wedding/preview";
+async function revealDate(panel: Locator) {
+  await expect(panel).not.toHaveAttribute("data-date-mode", "pending");
+  await panel.evaluate(node => {
+    const canvas = node.closest<HTMLElement>("[data-royal-scroll]")!;
+    const start = canvas.scrollTop + node.getBoundingClientRect().top - canvas.getBoundingClientRect().top;
+    const height = parseFloat((node as HTMLElement).style.getPropertyValue("--scene-height"));
+    canvas.scrollTop = start + ((node as HTMLElement).dataset.dateMode === "scroll" ? height : 0);
+  });
+  await expect(panel).toHaveAttribute("data-date-state", "settled");
+}
 test("date typography remains readable within the small full-page preview", async ({ page }, info) => {
   await page.setViewportSize({ width: 467, height: 599 });
   await page.goto("/preview/royal-wedding");
   const canvas = page.locator("[data-royal-scroll]");
   await canvas.getByRole("button", { name: "Skip introduction" }).click();
   const panel = canvas.getByTestId("wedding-date-panel");
-  await panel.getByRole("button", { name: "Show wedding date" }).click();
+  await revealDate(panel);
   await expect(panel).toHaveAttribute("data-date-state", "settled");
   const sticky = panel.locator("[class*='dateSticky']");
   const bounds = (await sticky.boundingBox())!;
@@ -114,7 +124,7 @@ async function openInvitation(page: Page) {
   return stage;
 }
 
-test("palace scenes have ordered content and RSVP remains a private disabled review", async ({
+test("palace scenes have ordered content and RSVP review prevents submission", async ({
   page,
 }, testInfo) => {
   const stage = await openInvitation(page);
@@ -134,19 +144,16 @@ test("palace scenes have ordered content and RSVP remains a private disabled rev
     "1",
   );
   await expect(body.locator("article")).toHaveCount(6);
-  expect(
-    await stage
-      .locator("[data-palace-backdrop]")
-      .evaluate((node) => getComputedStyle(node).backgroundImage),
-  ).toContain("hero.webp");
+  await expect(stage.locator("[data-palace-backdrop] img")).toHaveAttribute("src", /hero\.webp$/);
   await stage.screenshot({
     path: testInfo.outputPath("desktop-palace-invitation.png"),
   });
   const rsvp = body.locator('[data-section="rsvp"]');
   for (const field of await rsvp
-    .locator("input, select, textarea, button")
+    .locator("input, select, textarea")
     .all())
-    await expect(field).toBeDisabled();
+    await expect(field).toBeEnabled();
+  await expect(rsvp.getByRole("button", { name: "Send RSVP" })).toBeDisabled();
   await page.getByRole("checkbox", { name: "Review RSVP layout" }).uncheck();
   await expect(body.locator('[data-section="rsvp"]')).toHaveCount(0);
   await expect(body.locator("input, select, textarea")).toHaveCount(0);
@@ -196,6 +203,9 @@ test("scroll rolls the correct date, reverses the wheels, and celebrates only on
     );
   expect(values).toEqual(["21", "Feb", "2027"]);
   await expect(panel).toHaveAttribute("data-test-celebrations", "1");
+  await expect(panel.getByTestId("date-confetti").locator("[data-particle]")).toHaveCount(56);
+  await page.waitForTimeout(450);
+  await stage.screenshot({ path: testInfo.outputPath("date-celebration.png") });
   await expect(panel.getByTestId("date-confetti")).toHaveCount(0);
   // After the wheels finish, the scene stays pinned for reading the details.
   const pinnedTop = await panel
@@ -207,13 +217,16 @@ test("scroll rolls the correct date, reverses the wheels, and celebrates only on
     .locator("[class*='dateSticky']")
     .evaluate((node) => node.getBoundingClientRect().top);
   expect(Math.abs(heldTop - pinnedTop)).toBeLessThan(2);
+  // Celebration travel is followed by a separate reading stretch.
+  await scrollDate(3.4);
+  expect(Math.abs(await panel.locator("[data-date-sticky]").evaluate(node => node.getBoundingClientRect().top) - pinnedTop)).toBeLessThan(2);
   expect(
     await panel.evaluate(
       (node) =>
         node.clientHeight /
         node.closest<HTMLElement>("[data-royal-scroll]")!.clientHeight,
     ),
-  ).toBeCloseTo(3.4, 1);
+  ).toBeCloseTo(4.65, 1);
   await stage.screenshot({
     path: testInfo.outputPath("desktop-rolling-date-settled.png"),
   });
@@ -224,25 +237,26 @@ test("scroll rolls the correct date, reverses the wheels, and celebrates only on
   await expect(panel).toHaveAttribute("data-test-celebrations", "1");
 });
 
-test("date keyboard shortcut settles the wheels and replay resets the experience", async ({
+test("native keyboard scrolling reveals the date and replay resets the experience", async ({
   page,
 }) => {
   const stage = await openInvitation(page);
   const panel = stage.getByTestId("wedding-date-panel");
-  const button = panel.getByRole("button", { name: "Show wedding date" });
-  await button.scrollIntoViewIfNeeded();
-  await button.focus();
-  await page.keyboard.press("Enter");
+  await expect(panel.getByRole("button")).toHaveCount(0);
+  await panel.evaluate(node => {
+    const canvas = node.closest<HTMLElement>("[data-royal-scroll]")!;
+    canvas.scrollTop += node.getBoundingClientRect().top - canvas.getBoundingClientRect().top;
+  });
+  await stage.focus();
+  await page.keyboard.press("PageDown");
+  await expect(stage).toHaveCSS("outline-style", "solid");
+  await page.keyboard.press("PageDown");
   await expect(panel).toHaveAttribute("data-date-state", "settled");
-  await expect(
-    panel.getByRole("heading", {
-      name: /Save the Date.*Sunday, 21 February 2027/,
-    }),
-  ).toBeFocused();
+  await expect(stage).toBeFocused();
   expect(
     await panel
       .locator("[data-wheel-track]")
-      .evaluateAll((nodes) => nodes.map((node) => node.textContent)),
+      .evaluateAll((nodes) => nodes.map((node) => node.lastElementChild?.textContent)),
   ).toEqual(["21", "Feb", "2027"]);
   await page.getByRole("button", { name: "Replay" }).click();
   await stage.getByRole("button", { name: "Skip introduction" }).click();
@@ -367,6 +381,7 @@ test("countdown stops at zero after the explicit India wedding timestamp", async
   await page.clock.install({ time: new Date("2027-02-22T00:00:00Z") });
   await page.emulateMedia({ reducedMotion: "reduce" });
   const stage = await openInvitation(page);
+  await stage.getByTestId("wedding-date-panel").scrollIntoViewIfNeeded();
   await expect(
     stage.getByText("The celebration has begun", { exact: true }),
   ).toHaveCount(1);
@@ -379,7 +394,7 @@ test("resizing and leaving a rolling date cleans animations without page errors"
   page.on("pageerror", (error) => errors.push(error.message));
   const stage = await openInvitation(page);
   const panel = stage.getByTestId("wedding-date-panel");
-  await panel.getByRole("button", { name: "Show wedding date" }).click();
+  await revealDate(panel);
   await page.emulateMedia({ reducedMotion: "reduce" });
   await expect(panel.getByTestId("date-confetti")).toHaveCount(0);
   await page.setViewportSize({ width: 600, height: 900 });
