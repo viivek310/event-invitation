@@ -243,3 +243,14 @@ For a read-only synthetic scroll profile, point `node scripts/profile-royal-scro
 The full [production Compose stack](compose.production.yml) runs **Next.js and PostgreSQL in Docker**, connecting to your existing **Traefik** via `traefik-network`. It includes a non-root standalone app image, separate migration/operational image, file-mounted secrets, private database networking, persistent volumes, readiness checks, resource limits, and rotated logs. Traefik routes to internal app port **3000**; no app/database ports are published.
 
 Follow [OPERATIONS.md](OPERATIONS.md) for Linux server configuration, secret generation, image builds, deployment, admin bootstrap inside Docker, updates, rollback, backup/restore, and credential rotation. Start with [.env.production.example](.env.production.example). Your existing Traefik provides HTTPS; no additional proxy is installed. Automated off-server backup scheduling/retention and alerting require operator setup. Do not use `next dev` in production.
+
+### Updating the app on your VPS
+
+Use the copy-and-run [release and rollback guide](OPERATIONS.md#6-release-and-rollback). It covers:
+
+- Pulling with `git pull --ff-only origin main`, keeping your existing production env/secrets, and retaining rollback image references.
+- **Building on the VPS:** explicit `build app migrate` commands for a full release, or `build app` for a confirmed design-only update.
+- **Using CI/registry images:** explicit image-pull commands instead of building on the server.
+- Running migrations and optional catalog registration, recreating the app, checking logs/HTTPS, and rolling back safely.
+
+For recent invitation design-only changes, follow [section 6.4](OPERATIONS.md#64-shortcut-for-confirmed-design-only-updates), including its preparation steps. A plain `restart app` or `up -d --wait app` does **not** rebuild source after a Git pull.

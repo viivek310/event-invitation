@@ -58,7 +58,7 @@ SECRETS_DIR=./secrets/production
 TRUST_PROXY=false
 ```
 
-Set a real domain without a scheme/path. Compose derives `APP_URL=https://${DOMAIN}`. APP/OPS images must represent the same source release; prefer commit tags or registry digests, never reusable `latest`. Database role names use lowercase letters/digits/underscores, starting with a letter. The database name also allows hyphens, such as `event-invitation`.
+Set a real domain without a scheme/path. Compose derives `APP_URL=https://${DOMAIN}`. For full releases, APP/OPS images must represent the same source release; prefer commit tags or registry digests, never reusable `latest`. A confirmed design-only update may reuse the unchanged operational image as described in section 6. Database role names use lowercase letters/digits/underscores, starting with a letter. The database name also allows hyphens, such as `event-invitation`.
 
 Generate five independent secrets without printing their values:
 
@@ -130,19 +130,139 @@ Never use `down -v` on production. Do not accidentally change the project name: 
 
 ## 6. Release and rollback
 
-1. Run type checks, relevant tests, production build, runtime dependency audit and container scans; validate in an isolated staging stack.
-2. Take a complete encrypted database/media backup. Record and retain current APP/OPS image references.
-3. Set matching new immutable image references, then pull/build them.
-4. Run the migration command from step 4. It holds a database advisory lock while Prisma runs. Stop on failure; never reset production.
-5. Run idempotent catalog registration if needed.
-6. Run `docker compose --env-file .env.production -f compose.production.yml up -d --wait app`, then HTTPS/business smoke checks.
-7. If checks fail and the schema remains backward compatible, restore the previous APP/OPS references and run:
+Run the commands below **inside the existing cloned project folder on the Linux VPS**. Run each step only when the previous one succeeds. Do not rerun first-deployment secret generation or admin bootstrap, copy over `.env.production`, or change the Compose project name during an update. PostgreSQL and Traefik should already be running.
 
-```sh
-docker compose --env-file .env.production -f compose.production.yml up -d --no-deps --wait app
+`restart app` restarts the existing container. `up -d --wait app` starts/recreates containers and waits for health checks. **Neither command rebuilds newly pulled application source.** Your workflow needs an explicit `build`, or a `pull` when images were built and published elsewhere.
+
+Before a release, complete type checks, relevant tests, production build, dependency/container scans and isolated staging checks. Take the encrypted database/media backup described in [section 7](#7-backup-and-recovery), verify it completed, and retain the current images for rollback. Run only one deployment at a time; use a CI concurrency guard or host `flock` if automating this process. The migration advisory lock protects migrations, not the whole deployment.
+
+### 6.1 Pull the source and retain the previous configuration
+
+```bash
+git branch --show-current
+git status --short
 ```
 
-This rolls back the app image, not schema changes. Normal migrations must be backward compatible; destructive changes need a separate recovery plan. Serialize whole deployments with your CI concurrency guard or host `flock`; the database advisory lock serializes migrations only.
+Confirm this checkout is on `main` and review any local changes before continuing. Keep the server's existing production configuration and secret files.
+
+```bash
+git pull --ff-only origin main
+git rev-parse --short=12 HEAD
+docker compose --env-file .env.production -f compose.production.yml ps
+cp -p .env.production .env.production.previous
+```
+
+`--ff-only` refuses to create an accidental merge commit on the server. If Git reports divergent history or conflicting local changes, stop and resolve them deliberately; do not force-reset the checkout. If you already successfully pulled this release, you do not need to pull it again.
+
+The `.previous` file records the old APP/OPS references; retain those images too. Keep this file protected and out of Git. Do not overwrite it with the new release configuration before deciding whether a rollback is needed.
+
+### 6.2 Prepare images — choose one workflow
+
+**A. Build on the VPS from the code you pulled (your current workflow).**
+
+Edit only the image references in your existing configuration:
+
+```bash
+nano .env.production
+```
+
+Use the commit printed above as both image tags. For example, if it printed `a1b2c3d4e5f6`, set:
+
+```dotenv
+APP_IMAGE=events-invitation:a1b2c3d4e5f6
+OPS_IMAGE=events-invitation-ops:a1b2c3d4e5f6
+```
+
+Use your actual commit, not the example. Leave domain, database identifiers, project/network names and secret paths unchanged. Then build both images:
+
+```bash
+docker compose --env-file .env.production -f compose.production.yml config --quiet
+docker compose --env-file .env.production -f compose.production.yml build --pull app migrate
+```
+
+Building `migrate` produces the operational image also used by `tools`. No host Node.js installation is needed. Stop if either build fails; the running app can continue using its previous image.
+
+**B. Pull images built and published by CI (alternative workflow).**
+
+Set `APP_IMAGE` and `OPS_IMAGE` in `.env.production` to the matching immutable release references provided by CI, for example `ghcr.io/YOUR_ORG/events-invitation:COMMIT` and `ghcr.io/YOUR_ORG/events-invitation-ops:COMMIT`. Authenticate to your registry first if it is private. Use the real organization, image names and release tag/digest, then run:
+
+```bash
+docker compose --env-file .env.production -f compose.production.yml config --quiet
+docker compose --env-file .env.production -f compose.production.yml pull app migrate
+```
+
+Use **A or B**, not both. A local `build` does not publish images to a registry. After either workflow succeeds, continue below.
+
+### 6.3 Apply migrations and deploy the prepared release
+
+Confirm PostgreSQL is healthy in `docker compose ... ps` before using these `--no-deps` jobs. They use the existing database service without recreating it.
+
+```bash
+docker compose --env-file .env.production -f compose.production.yml run --rm --no-deps migrate
+```
+
+This runs `prisma migrate deploy` under the database advisory lock; it is a no-op when there are no pending migrations. If it fails, stop deployment and inspect the migration failure. Never reset or reseed production.
+
+If the release adds a catalog entry, run its idempotent registration:
+
+```bash
+docker compose --env-file .env.production -f compose.production.yml run --rm --no-deps tools --import tsx scripts/catalog-sync.ts
+```
+
+The current registration preserves existing admin edits and demo content. It does not replace saved invitation wording with new sample defaults. Routine styling updates do not need catalog registration.
+
+After migrations and any required registration succeed, deploy only the app using the image already built or pulled:
+
+```bash
+docker compose --env-file .env.production -f compose.production.yml up -d --no-deps --no-build --force-recreate --wait app
+docker compose --env-file .env.production -f compose.production.yml ps
+docker compose --env-file .env.production -f compose.production.yml logs --tail=100 app
+```
+
+`--no-deps` is appropriate here because the database is already healthy and you explicitly completed migrations. `--no-build` ensures this step uses the prepared release image. A single VPS can have brief downtime during app recreation.
+
+### 6.4 Shortcut for confirmed design-only updates
+
+Use this only when the update changes invitation presentation/artwork and has **no migrations, operational-script changes, new catalog registration or deployment-configuration changes**. If unsure, use the full procedure above. Keep the existing operational image in this shortcut.
+
+After the backup/configuration preparation in 6.1, edit `.env.production` and give **APP_IMAGE only** a new commit tag as shown in 6.2 A. Then:
+
+```bash
+docker compose --env-file .env.production -f compose.production.yml config --quiet
+docker compose --env-file .env.production -f compose.production.yml build app
+docker compose --env-file .env.production -f compose.production.yml up -d --no-deps --no-build --force-recreate --wait app
+docker compose --env-file .env.production -f compose.production.yml ps
+docker compose --env-file .env.production -f compose.production.yml logs --tail=100 app
+```
+
+This is the build-on-server path for the recent invitation design changes. If using CI images instead, replace `build app` with `pull app` and use its published immutable `APP_IMAGE` reference. Neither path changes database/media volumes or customer content. Continue with the checks below.
+
+### 6.5 Check the deployed site
+
+Replace `invite.yourdomain.com` with your configured production domain:
+
+```bash
+curl --fail --show-error 'https://invite.yourdomain.com/api/health?ready=1'
+curl --fail --show-error --output /dev/null 'https://invite.yourdomain.com/templates/royal-wedding?canvas=1'
+```
+
+Open the full-page preview in a browser and refresh it. Check the changed interactions on a phone and desktop. For a full release, also check login/MFA, a purchased invitation, media access and the relevant customer/RSVP workflow. A healthy container alone does not verify the real-domain invitation experience. If startup fails, read the app logs and verify Traefik routing rather than running the next release step blindly.
+
+### 6.6 Roll back the application image
+
+If verification fails and the previous application supports the current database schema, restore **only APP_IMAGE and OPS_IMAGE** in `.env.production` to the references recorded in `.env.production.previous`:
+
+```bash
+nano .env.production
+docker compose --env-file .env.production -f compose.production.yml config --quiet
+docker compose --env-file .env.production -f compose.production.yml up -d --no-deps --no-build --force-recreate --wait app
+docker compose --env-file .env.production -f compose.production.yml ps
+docker compose --env-file .env.production -f compose.production.yml logs --tail=100 app
+```
+
+The previous app image must still exist locally; for registry releases, pull the previous app image before the `up` command if needed. Repeat the HTTPS/browser checks. Do not rebuild old image tags from the new checkout or prune rollback images during a release.
+
+This rolls back the application, not database migrations or data. Normal migrations must be backward compatible. Destructive schema changes require a separate migration and recovery plan; do not automatically restore an old database over newer customer responses.
 
 ## 7. Backup and recovery
 
